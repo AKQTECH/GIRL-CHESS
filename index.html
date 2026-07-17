@@ -23,8 +23,8 @@
       --pink-4: #d982b2;
       --pink-5: #bd6798;
       --black: #151015;
-      --line: rgba(21, 16, 21, 0.86);
-      --line-soft: rgba(21, 16, 21, 0.46);
+      --line: rgba(21, 16, 21, 0.76);
+      --line-soft: rgba(21, 16, 21, 0.34);
       --shadow: 0 18px 34px rgba(21, 16, 21, 0.12);
       --square: min(9.8vw, 62px);
     }
@@ -324,32 +324,34 @@
 
     .board-wrap {
       border: 2px solid var(--line);
-      background: linear-gradient(145deg, var(--pink-2), var(--pink-3));
-      padding: clamp(10px, 2vw, 18px);
+      background: var(--pink-2);
+      padding: clamp(10px, 1.8vw, 16px);
     }
 
     .board-frame {
       width: min(100%, 610px);
       margin: 0 auto;
-      padding: 10px;
-      border: 2px solid var(--line);
-      border-radius: 8px;
-      background: var(--pink-2);
-      box-shadow: inset 0 0 0 4px rgba(255, 250, 253, 0.52);
+      padding: clamp(15px, 2.6vw, 24px);
+      border: 3px solid var(--line);
+      border-radius: 20px;
+      background: var(--pink-1);
+      box-shadow: inset 0 0 0 5px rgba(255, 250, 253, 0.54);
     }
 
     .files {
       display: grid;
       grid-template-columns: repeat(8, 1fr);
-      margin: 0 22px 6px;
+      margin: 0 30px 10px;
       font-family: "Silkscreen", monospace;
-      font-size: 11px;
+      font-size: 14px;
+      line-height: 1;
       text-align: center;
+      text-transform: uppercase;
     }
 
     .board-row {
       display: grid;
-      grid-template-columns: 22px 1fr 22px;
+      grid-template-columns: 30px 1fr 30px;
     }
 
     .ranks {
@@ -358,14 +360,16 @@
       align-items: center;
       justify-items: center;
       font-family: "Silkscreen", monospace;
-      font-size: 11px;
+      font-size: 14px;
+      line-height: 1;
     }
 
     .board {
       aspect-ratio: 1;
       display: grid;
       grid-template-columns: repeat(8, 1fr);
-      border: 2px solid var(--line);
+      grid-template-rows: repeat(8, 1fr);
+      border: 3px solid var(--line);
       background: var(--white);
     }
 
@@ -378,32 +382,25 @@
       border: 0;
       padding: 0;
       background: var(--white);
+      container-type: inline-size;
+      overflow: hidden;
     }
 
     .square.dark {
       background: var(--pink-2);
     }
 
-    .square.is-highlight::after,
-    .square.is-target::after,
-    .square.is-found::after {
-      content: "";
-      position: absolute;
-      inset: 31%;
-      border: 2px solid var(--line);
-      border-radius: 999px;
-      background: var(--pink-3);
-      pointer-events: none;
+    .square.is-highlight,
+    .square.is-target {
+      box-shadow: inset 0 0 0 2px rgba(189, 103, 152, 0.42);
     }
 
-    .square.is-found::after {
-      inset: 24%;
-      background: var(--pink-4);
+    .square.is-found {
+      box-shadow: inset 0 0 0 3px rgba(21, 16, 21, 0.56);
     }
 
     .square.is-selected {
-      outline: 4px solid var(--pink-5);
-      outline-offset: -7px;
+      box-shadow: inset 0 0 0 3px var(--pink-5);
     }
 
     .piece {
@@ -411,13 +408,22 @@
       z-index: 1;
       display: grid;
       place-items: center;
-      width: 78%;
-      height: 78%;
+      width: 82%;
+      height: 82%;
       color: var(--pink-3);
-      font-family: "Times New Roman", "Apple Symbols", serif;
-      font-size: clamp(24px, 5.2vw, 56px);
-      line-height: 1;
+      font-family: "Arial Unicode MS", "Apple Symbols", "Noto Sans Symbols 2", "Times New Roman", serif;
+      font-size: clamp(18px, 72cqw, 52px);
+      font-weight: 900;
+      line-height: 0.92;
       pointer-events: none;
+      transform: scale(0.94);
+      text-shadow:
+        -0.55px -0.55px 0 rgba(21, 16, 21, 0.75),
+        0.55px -0.55px 0 rgba(21, 16, 21, 0.75),
+        -0.55px 0.55px 0 rgba(21, 16, 21, 0.75),
+        0.55px 0.55px 0 rgba(21, 16, 21, 0.75),
+        0 0.8px 0 rgba(21, 16, 21, 0.38);
+      -webkit-text-stroke: 0.18px rgba(21, 16, 21, 0.75);
     }
 
     .piece.dark-piece {
@@ -531,9 +537,16 @@
       border: 2px solid var(--line);
       background: var(--pink-1);
       color: var(--pink-5);
-      font-family: "Times New Roman", "Apple Symbols", serif;
-      font-size: 36px;
+      font-family: "Arial Unicode MS", "Apple Symbols", "Noto Sans Symbols 2", "Times New Roman", serif;
+      font-size: 40px;
+      font-weight: 900;
       line-height: 1;
+      text-shadow:
+        -0.5px -0.5px 0 rgba(21, 16, 21, 0.75),
+        0.5px -0.5px 0 rgba(21, 16, 21, 0.75),
+        -0.5px 0.5px 0 rgba(21, 16, 21, 0.75),
+        0.5px 0.5px 0 rgba(21, 16, 21, 0.75);
+      -webkit-text-stroke: 0.18px rgba(21, 16, 21, 0.75);
     }
 
     .legend-name {
@@ -640,21 +653,21 @@
       }
 
       .files {
-        margin-left: 16px;
-        margin-right: 16px;
-        font-size: 9px;
+        margin-left: 20px;
+        margin-right: 20px;
+        font-size: 10px;
       }
 
       .board-row {
-        grid-template-columns: 16px 1fr 16px;
+        grid-template-columns: 20px 1fr 20px;
       }
 
       .ranks {
-        font-size: 9px;
+        font-size: 10px;
       }
 
       .piece {
-        font-size: clamp(19px, 8vw, 36px);
+        font-size: clamp(18px, 72cqw, 38px);
       }
 
       .action-row,
@@ -674,7 +687,7 @@
         <button class="tab-button" type="button" data-view="practice">practice</button>
         <button class="tab-button" type="button" data-view="about">about</button>
       </nav>
-      <div class="progress-pill" id="progressPill">0/10 done</div>
+      <div class="progress-pill" id="progressPill">0/12 done</div>
     </header>
 
     <main class="layout" id="layout">
@@ -707,7 +720,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "Girl Chess v1.2";
+    const APP_VERSION = "Girl Chess v1.9";
     const STORAGE_KEY = "girl-chess-progress-v1";
     const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
     const RANKS = [8, 7, 6, 5, 4, 3, 2, 1];
@@ -719,15 +732,15 @@
         symbol: "♚",
         role: "Protect this piece.",
         move: "Moves one square in any direction.",
-        bridge: "Like the key tile in a hand: everything changes around it."
+        bridge: "This is the piece you protect."
       },
       {
         id: "queen",
         name: "queen",
         symbol: "♛",
         role: "Most powerful piece.",
-        move: "Moves straight or diagonal, any distance.",
-        bridge: "A flexible tile: it can work in many patterns."
+        move: "Moves straight or slanted, any distance.",
+        bridge: "If the queen has a clear line, she can go far."
       },
       {
         id: "rook",
@@ -735,15 +748,15 @@
         symbol: "♜",
         role: "Straight-line piece.",
         move: "Moves up, down, left, or right.",
-        bridge: "Think clean rows and columns."
+        bridge: "Straight lines only."
       },
       {
         id: "bishop",
         name: "bishop",
         symbol: "♝",
-        role: "Diagonal piece.",
-        move: "Moves only on diagonals.",
-        bridge: "It stays in one color family the whole game."
+        role: "Slanted-line piece.",
+        move: "Moves only on slanted lines.",
+        bridge: "Slanted lines only."
       },
       {
         id: "knight",
@@ -751,15 +764,15 @@
         symbol: "♞",
         role: "Jumping piece.",
         move: "Moves in an L shape: two, then one.",
-        bridge: "A pattern jump. It does not need a clear path."
+        bridge: "Look for the L shape."
       },
       {
         id: "pawn",
         name: "pawn",
         symbol: "♟",
         role: "Small piece with special rules.",
-        move: "Moves forward. Captures diagonally.",
-        bridge: "Tiny piece, weird rules. Learn it slowly."
+        move: "Moves forward. Takes diagonally.",
+        bridge: "Pawn rule: walk straight, take slanted."
       }
     ];
 
@@ -796,112 +809,178 @@
 
     const LESSONS = [
       {
-        id: "whole-game",
+        id: "goal",
         title: "start here",
-        label: "lesson 01: start here",
-        macroTitle: "whole game",
+        label: "lesson 01: the goal",
+        macroTitle: "how to win",
         macro: [
-          "Chess is a turn-by-turn board game with two sides.",
-          "The objective is checkmate: trap the king so it cannot escape."
+          "Chess is a game between two teams.",
+          "Your team is soft pink. The other team is dark pink.",
+          "You win by trapping the other king."
         ],
-        bridge: "Mahjong bridge: first learn the set, then the goal. In chess, the set is pieces plus squares.",
+        bridge: "For now, remember one sentence: keep your king safe, trap their king.",
         position: "start",
         steps: [
           {
-            title: "two sides",
-            body: "Soft pink and dark pink have the same pieces.",
-            targets: ["a1", "a8"],
-            completeMode: "all",
-            prompt: "Tap one rook from each side.",
-            success: "Good. Same piece, two teams."
+            title: "your team",
+            body: "Soft pink pieces are your pieces.",
+            targets: ["a1", "d1", "e1"],
+            completeMode: "one",
+            prompt: "Tap any soft pink piece.",
+            success: "Yes. That piece is on your team."
           },
           {
-            title: "objective",
-            body: "The king is the piece every plan revolves around.",
+            title: "their team",
+            body: "Dark pink pieces are the other team's pieces.",
+            targets: ["a8", "d8", "e8"],
+            completeMode: "one",
+            prompt: "Tap any dark pink piece.",
+            success: "Yes. That is the other team."
+          },
+          {
+            title: "the kings",
+            body: "The king is the piece the whole game is about.",
             targets: ["e1", "e8"],
             completeMode: "all",
             prompt: "Tap both kings.",
-            success: "Yes. Protect yours, trap theirs."
+            success: "These are the kings. Protect yours. Trap theirs."
+          }
+        ]
+      },
+      {
+        id: "turns",
+        title: "big picture",
+        label: "lesson 02: a turn",
+        macroTitle: "one move at a time",
+        macro: [
+          "You move one piece on your turn.",
+          "Then the other team moves one piece.",
+          "The game goes back and forth until one king is trapped."
+        ],
+        bridge: "A turn is one choice: pick one piece and move it one time.",
+        position: "start",
+        steps: [
+          {
+            title: "pick one",
+            body: "You do not move the whole team. You choose one piece.",
+            targets: ["a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2"],
+            completeMode: "one",
+            prompt: "Tap one soft pink piece.",
+            success: "Right. That could be your one piece for this turn."
           },
           {
-            title: "turns",
-            body: "One side moves once. Then the other side moves once.",
-            targets: ["d2"],
+            title: "move once",
+            body: "After you move that piece, your turn is done.",
+            targets: ["d3", "d4"],
             completeMode: "one",
-            prompt: "Tap a soft pink piece to take the first turn.",
-            success: "That is the rhythm: one move at a time."
+            prompt: "Tap one square the pawn on d2 could move to.",
+            success: "Yes. One piece, one move."
+          },
+          {
+            title: "then they go",
+            body: "After your move, the other team gets a turn.",
+            targets: ["a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7"],
+            completeMode: "one",
+            prompt: "Tap one dark pink pawn.",
+            success: "Exactly. Turns go back and forth."
           }
         ]
       },
       {
         id: "board-map",
         title: "board map",
-        label: "lesson 02: board map",
+        label: "lesson 03: the board",
         macroTitle: "64 squares",
         macro: [
-          "The board is 8 by 8.",
-          "Every square has an address, like d4 or e1."
+          "The board is made of squares.",
+          "Pieces sit on squares.",
+          "Letters and numbers are just square names."
         ],
-        bridge: "Mahjong bridge: like sorting tiles by suit and number, coordinates help you name exactly what you are looking at.",
+        bridge: "Square names help you find a place. You can learn them slowly.",
         position: "empty",
         steps: [
           {
-            title: "files",
-            body: "Files are columns. They are letters: a through h.",
+            title: "letters",
+            body: "Letters name the up-and-down columns.",
             targets: ["a4", "h4"],
             completeMode: "all",
             prompt: "Tap a4 and h4.",
-            success: "Yes. Same rank, different files."
+            success: "Yes. Those are two different columns."
           },
           {
-            title: "ranks",
-            body: "Ranks are rows. They are numbers: 1 through 8.",
+            title: "numbers",
+            body: "Numbers name the side-to-side rows.",
             targets: ["d1", "d8"],
             completeMode: "all",
             prompt: "Tap d1 and d8.",
-            success: "Exactly. Same file, different ranks."
+            success: "Yes. Those are two different rows."
           },
           {
-            title: "address",
+            title: "square name",
             body: "A square name is letter first, number second.",
             targets: ["d4"],
             completeMode: "one",
             prompt: "Tap d4.",
-            success: "Perfect. That is a square address."
+            success: "Perfect. d4 means column d, row 4."
           }
         ]
       },
       {
-        id: "piece-legend",
-        title: "piece legend",
-        label: "lesson 03: piece legend",
-        macroTitle: "know the set",
+        id: "piece-guide",
+        title: "piece guide",
+        label: "lesson 04: the pieces",
+        macroTitle: "six shapes",
         macro: [
-          "There are six piece types.",
-          "Each type has a job and a movement pattern."
+          "Chess has six kinds of pieces.",
+          "Each kind has a different shape.",
+          "Each kind has one basic movement rule."
         ],
-        bridge: "Mahjong bridge: learn the symbols before trying to build a full hand. Here, learn the pieces before trying to plan.",
+        bridge: "First, learn what the pieces look like. The rules will come one at a time.",
         position: "legend",
         steps: [
           {
-            title: "major pieces",
-            body: "Queen and rooks cover long lines.",
-            targets: ["d1", "a1", "h1"],
-            completeMode: "all",
-            prompt: "Tap the queen and both rooks.",
-            success: "Good. These are your big line pieces."
+            title: "king",
+            body: "The king usually has a cross on top. This is the piece you protect.",
+            targets: ["e1", "e8"],
+            completeMode: "one",
+            prompt: "Tap a king.",
+            success: "That is a king."
           },
           {
-            title: "minor pieces",
-            body: "Bishops and knights create patterns.",
-            targets: ["b1", "c1", "f1", "g1"],
-            completeMode: "all",
-            prompt: "Tap both bishops and both knights.",
-            success: "Yes. These pieces shape the middle of the board."
+            title: "queen",
+            body: "The queen has a crown. She is the strongest mover.",
+            targets: ["d1", "d8"],
+            completeMode: "one",
+            prompt: "Tap a queen.",
+            success: "That is a queen."
+          },
+          {
+            title: "rook",
+            body: "The rook looks like a little tower.",
+            targets: ["a1", "h1", "a8", "h8"],
+            completeMode: "one",
+            prompt: "Tap a rook.",
+            success: "That is a rook."
+          },
+          {
+            title: "bishop",
+            body: "The bishop is the tall piece with a pointed top.",
+            targets: ["c1", "f1", "c8", "f8"],
+            completeMode: "one",
+            prompt: "Tap a bishop.",
+            success: "That is a bishop."
+          },
+          {
+            title: "knight",
+            body: "The knight looks like a horse head.",
+            targets: ["b1", "g1", "b8", "g8"],
+            completeMode: "one",
+            prompt: "Tap a knight.",
+            success: "That is a knight."
           },
           {
             title: "pawns",
-            body: "Pawns are small, but they shape everything.",
+            body: "Pawns are the small pieces lined up in front.",
             targets: ["a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2"],
             completeMode: "one",
             prompt: "Tap any soft pink pawn.",
@@ -912,266 +991,312 @@
       {
         id: "pawns",
         title: "pawns",
-        label: "lesson 04: pawns",
-        macroTitle: "tiny rules",
+        label: "lesson 05: pawns",
+        macroTitle: "front row",
         macro: [
-          "Pawns move forward, but capture diagonally.",
-          "On their first move, they may move one or two squares."
+          "Pawns are the small pieces in front.",
+          "A pawn usually moves forward one square.",
+          "A pawn takes on a slanted forward square."
         ],
-        bridge: "Mahjong bridge: this is the special-case piece. Do not rush it. Pawns have exceptions.",
+        bridge: "Pawn rule: walk straight forward, take one slanted step forward.",
         position: "pawns",
         steps: [
           {
-            title: "forward",
-            body: "A soft pink pawn moves up the board.",
+            title: "walk forward",
+            body: "A soft pink pawn moves toward the top of the board.",
             targets: ["d3", "d4"],
             completeMode: "one",
-            prompt: "Tap a legal first move for the pawn on d2.",
-            success: "Yes. First move can be one or two squares."
+            prompt: "Tap a square the pawn on d2 can move to.",
+            success: "Yes. Pawns walk forward."
           },
           {
-            title: "capture",
-            body: "Pawns capture one square diagonally forward.",
+            title: "take slanted",
+            body: "If an enemy piece is one slanted step ahead, the pawn can take it.",
             targets: ["c3", "e3"],
             completeMode: "one",
-            prompt: "Tap a pawn capture square.",
-            success: "Exactly. Pawns do not capture straight ahead."
+            prompt: "Tap a piece the pawn can take.",
+            success: "Right. Pawns take on a slanted square."
           },
           {
             title: "not sideways",
             body: "A pawn does not move sideways.",
             targets: ["d2"],
             completeMode: "one",
-            prompt: "Tap the pawn to reset the rule.",
-            success: "Right. Forward to move, diagonal to capture."
+            prompt: "Tap the pawn to remember the rule.",
+            success: "Forward to move. Slanted forward to take."
+          }
+        ]
+      },
+      {
+        id: "taking",
+        title: "taking pieces",
+        label: "lesson 06: taking",
+        macroTitle: "what take means",
+        macro: [
+          "Sometimes your piece can move onto an enemy piece.",
+          "That is called taking the piece.",
+          "The enemy piece leaves the board."
+        ],
+        bridge: "Take means: land on that square, remove that piece.",
+        position: "rooks",
+        steps: [
+          {
+            title: "your rook",
+            body: "A rook looks like a little tower.",
+            targets: ["d4"],
+            completeMode: "one",
+            prompt: "Tap the soft pink rook.",
+            success: "Yes. That tower piece is a rook."
+          },
+          {
+            title: "same line",
+            body: "This rook can see pieces in the same straight line.",
+            targets: ["a4", "d7"],
+            completeMode: "one",
+            prompt: "Tap a dark pink piece in the rook's straight line.",
+            success: "Right. The rook can reach that piece."
+          },
+          {
+            title: "take it",
+            body: "The rook takes by landing on the enemy piece's square.",
+            targets: ["a4", "d7"],
+            completeMode: "one",
+            prompt: "Tap a piece the rook can take.",
+            success: "Yes. The rook would land there, and that piece would leave."
           }
         ]
       },
       {
         id: "rooks",
         title: "rooks",
-        label: "lesson 05: rooks",
+        label: "lesson 07: rooks",
         macroTitle: "straight lines",
         macro: [
           "Rooks move in straight lines.",
-          "They move up, down, left, or right."
+          "Straight means up, down, left, or right.",
+          "Rooks do not move on slanted lines."
         ],
-        bridge: "Mahjong bridge: rook movement is clean sorting. Same row or same column.",
+        bridge: "Rook rule: straight lines only. No turning.",
         position: "rooks",
         steps: [
           {
-            title: "same file",
+            title: "up or down",
             body: "The rook can move up or down if the path is clear.",
             targets: ["d5", "d6"],
             completeMode: "one",
-            prompt: "Tap a clear vertical rook move.",
-            success: "Yes. Straight up the file."
+            prompt: "Tap a square above the rook.",
+            success: "Yes. That is straight up."
           },
           {
-            title: "same rank",
-            body: "The rook can move left or right if the path is clear.",
+            title: "left or right",
+            body: "The rook can also move left or right if the path is clear.",
             targets: ["b4", "c4", "e4", "f4", "g4", "h4"],
             completeMode: "one",
-            prompt: "Tap a clear horizontal rook move.",
-            success: "Good. Straight across the rank."
+            prompt: "Tap a square beside the rook.",
+            success: "Good. That is straight sideways."
           },
           {
-            title: "capture",
-            body: "A rook captures by landing on an enemy piece.",
-            targets: ["a4", "d7"],
+            title: "not slanted",
+            body: "A rook does not move on a slanted line.",
+            targets: ["d4"],
             completeMode: "one",
-            prompt: "Tap a rook capture.",
-            success: "Correct. Capture means take that square."
+            prompt: "Tap the rook to lock in the rule.",
+            success: "Rook equals straight lines."
           }
         ]
       },
       {
         id: "bishops",
         title: "bishops",
-        label: "lesson 06: bishops",
-        macroTitle: "diagonals",
+        label: "lesson 08: bishops",
+        macroTitle: "slanted lines",
         macro: [
-          "Bishops move diagonally.",
-          "A bishop always stays on the same square color."
+          "Bishops move on slanted lines.",
+          "Chess also calls this diagonal.",
+          "Bishops do not move straight."
         ],
-        bridge: "Mahjong bridge: this is a color-family pattern. Once you see the diagonal, the options get smaller.",
+        bridge: "Bishop rule: slanted lines only.",
         position: "bishops",
         steps: [
           {
-            title: "diagonal",
-            body: "A bishop moves on slants.",
+            title: "nearby slant",
+            body: "A bishop can move to a nearby slanted square.",
             targets: ["c5", "e5", "c3", "e3"],
             completeMode: "one",
-            prompt: "Tap a nearby bishop move.",
-            success: "Yes. That is a diagonal."
+            prompt: "Tap a nearby slanted square.",
+            success: "Yes. That is how a bishop moves."
           },
           {
-            title: "long line",
-            body: "If the path is clear, a bishop can move far.",
+            title: "far slant",
+            body: "If the path is clear, a bishop can go far on the same slanted line.",
             targets: ["a7", "g7", "g1"],
             completeMode: "one",
-            prompt: "Tap a longer bishop move.",
-            success: "Right. Diagonal distance can be short or long."
+            prompt: "Tap a far slanted square.",
+            success: "Right. Same slanted line."
           },
           {
-            title: "capture",
-            body: "A bishop captures on a diagonal.",
+            title: "take on slant",
+            body: "A bishop takes pieces that sit on its slanted line.",
             targets: ["b6", "f6"],
             completeMode: "one",
-            prompt: "Tap a bishop capture.",
-            success: "Correct. Same diagonal, enemy square."
+            prompt: "Tap a piece the bishop can take.",
+            success: "Correct. Same slanted line, enemy piece."
           }
         ]
       },
       {
         id: "queen",
         title: "queen",
-        label: "lesson 07: queen",
-        macroTitle: "most flexible",
+        label: "lesson 09: queen",
+        macroTitle: "straight or slanted",
         macro: [
-          "The queen combines rook and bishop movement.",
-          "She moves straight or diagonal, any distance."
+          "The queen is the strongest mover.",
+          "She can move like a rook: straight.",
+          "She can move like a bishop: slanted."
         ],
-        bridge: "Mahjong bridge: the queen is flexible. More options means pause and choose carefully.",
+        bridge: "Queen rule: straight or slanted, as long as the path is clear.",
         position: "queen",
         steps: [
           {
             title: "straight",
-            body: "The queen can move like a rook.",
+            body: "The queen can move up, down, left, or right.",
             targets: ["d5", "d6", "d7", "a4"],
             completeMode: "one",
-            prompt: "Tap a straight queen move or capture.",
-            success: "Yes. That is the rook side of the queen."
+            prompt: "Tap a straight queen move.",
+            success: "Yes. The queen can move straight."
           },
           {
-            title: "diagonal",
-            body: "The queen can also move like a bishop.",
+            title: "slanted",
+            body: "The queen can also move on a slanted line.",
             targets: ["e5", "f6", "g7", "c5", "b6"],
             completeMode: "one",
-            prompt: "Tap a diagonal queen move or capture.",
-            success: "Good. That is the bishop side of the queen."
+            prompt: "Tap a slanted queen move.",
+            success: "Good. The queen can move slanted too."
           },
           {
-            title: "not a knight",
-            body: "The queen does not jump in an L shape.",
+            title: "no jumping",
+            body: "The queen is powerful, but she cannot jump over pieces.",
             targets: ["d4"],
             completeMode: "one",
-            prompt: "Tap the queen to remember: no jumping.",
-            success: "Right. Powerful, but not a jumper."
+            prompt: "Tap the queen to remember: clear path.",
+            success: "Right. The queen needs a clear path."
           }
         ]
       },
       {
-        id: "knight",
+        id: "knights",
         title: "knights",
-        label: "lesson 08: knights",
+        label: "lesson 10: knights",
         macroTitle: "the jump",
         macro: [
-          "Knights move in an L shape: two squares, then one.",
-          "Knights can jump over pieces."
+          "Knights look like horse heads.",
+          "They jump in an L shape.",
+          "They are the only pieces here that can jump over other pieces."
         ],
-        bridge: "Mahjong bridge: this is a pattern lookup. Do not trace a line. Look for the L.",
+        bridge: "Knight rule: two squares one way, then one square to the side.",
         position: "knight",
         steps: [
           {
-            title: "the shape",
-            body: "From d5, the knight has L-shaped landing squares.",
+            title: "L shape",
+            body: "The knight does not move in a straight or slanted line.",
             targets: ["b4", "b6", "c3", "c7", "e3", "e7", "f4", "f6"],
             completeMode: "one",
-            prompt: "Tap one legal knight move.",
-            success: "Yes. Two squares, then one."
+            prompt: "Tap one square the knight can jump to.",
+            success: "Yes. That is a knight move."
           },
           {
             title: "jump",
             body: "Pieces beside the knight do not block it.",
             targets: ["f4", "b6"],
             completeMode: "one",
-            prompt: "Tap a legal jump capture.",
-            success: "Correct. The knight can jump."
+            prompt: "Tap a square the knight can still reach.",
+            success: "Correct. Knights can jump."
           },
           {
-            title: "not straight",
-            body: "A knight never moves in a straight line.",
+            title: "weird one",
+            body: "The knight is the piece that takes the most practice.",
             targets: ["d5"],
             completeMode: "one",
-            prompt: "Tap the knight to reset the idea.",
-            success: "Good. Find the L, not a line."
+            prompt: "Tap the knight to finish.",
+            success: "Good. For knights, look for the L."
           }
         ]
       },
       {
         id: "king",
         title: "king and check",
-        label: "lesson 09: king and check",
-        macroTitle: "protect the king",
+        label: "lesson 11: king and check",
+        macroTitle: "king safety",
         macro: [
-          "The king moves one square in any direction.",
-          "Check means the king is under attack."
+          "The king moves one square.",
+          "If another piece could take your king next, your king is in danger.",
+          "Chess calls that danger check."
         ],
-        bridge: "Mahjong bridge: check is a warning state. Stop and answer the warning before making another plan.",
+        bridge: "Check means: stop and make the king safe.",
         position: "king",
         steps: [
           {
             title: "king move",
-            body: "The king moves one square.",
+            body: "The king moves one square in any direction.",
             targets: ["d1", "d2", "e2", "f2", "f1"],
             completeMode: "one",
-            prompt: "Tap one legal king move from e1.",
-            success: "Yes. One square only."
+            prompt: "Tap one square the king can move to.",
+            success: "Yes. One square."
           },
           {
-            title: "check",
-            body: "A rook on e7 attacks down the e-file.",
+            title: "danger",
+            body: "The soft pink rook is pointing at the dark pink king.",
             targets: ["e8"],
             completeMode: "one",
-            prompt: "Tap the dark king in check.",
-            success: "Right. The king is being attacked."
+            prompt: "Tap the dark pink king.",
+            success: "That king is in danger. That is check."
           },
           {
-            title: "must answer",
-            body: "When in check, you must move, block, or capture the threat.",
+            title: "make safe",
+            body: "When a king is in check, the next move must make it safe.",
             targets: ["e7"],
             completeMode: "one",
-            prompt: "Tap the checking piece.",
-            success: "Good. That is the threat to answer."
+            prompt: "Tap the piece causing the danger.",
+            success: "Good. The danger comes from that rook."
           }
         ]
       },
       {
         id: "checkmate",
         title: "checkmate",
-        label: "lesson 10: checkmate",
-        macroTitle: "the finish",
+        label: "lesson 12: checkmate",
+        macroTitle: "the game ends",
         macro: [
-          "Checkmate means the king is in check and has no safe escape.",
-          "That is how a chess game ends."
+          "Checkmate means the king is trapped.",
+          "The king is in danger.",
+          "There is no safe move left."
         ],
-        bridge: "Mahjong bridge: like completing the hand, checkmate is the finished pattern. You are checking every escape square.",
+        bridge: "Checkmate means: the king cannot get safe, so the game is over.",
         position: "mate",
         steps: [
           {
-            title: "check",
-            body: "The queen on g7 attacks the king on h8.",
+            title: "in danger",
+            body: "The soft pink queen is putting the dark pink king in danger.",
             targets: ["h8"],
             completeMode: "one",
-            prompt: "Tap the king in check.",
-            success: "Yes. The king is under attack."
+            prompt: "Tap the dark pink king.",
+            success: "Yes. That king is in danger."
           },
           {
-            title: "escape squares",
-            body: "A king needs a safe square to survive.",
+            title: "no safe square",
+            body: "A trapped king has nowhere safe to go.",
             targets: ["g8", "h7"],
             completeMode: "all",
-            prompt: "Tap the escape squares to inspect them.",
-            success: "Good. Both are covered."
+            prompt: "Tap the two nearby squares.",
+            success: "Those squares are not safe."
           },
           {
-            title: "mate",
-            body: "If the king is trapped, the game is over.",
+            title: "game over",
+            body: "The queen is the piece trapping the king.",
             targets: ["g7"],
             completeMode: "one",
-            prompt: "Tap the piece creating checkmate.",
-            success: "That is checkmate."
+            prompt: "Tap the queen.",
+            success: "That is checkmate. The game ends."
           }
         ]
       }
@@ -1193,8 +1318,8 @@
         completeMode: "one"
       },
       {
-        title: "knight check",
-        body: "Tap one legal knight move from d5.",
+        title: "knight move",
+        body: "Tap one square the knight can jump to from d5.",
         position: "knight",
         targets: ["b4", "b6", "c3", "c7", "e3", "e7", "f4", "f6"],
         completeMode: "one"
@@ -1388,7 +1513,7 @@
       stage.innerHTML = `
         <section class="macro-card">
           <div>
-            <p class="eyebrow">macro view</p>
+            <p class="eyebrow">big picture</p>
             <h2 class="macro-title">${escapeHTML(lesson.macroTitle)}</h2>
             ${lesson.macro.map(text => `<p class="plain-text">${escapeHTML(text)}</p>`).join("")}
           </div>
@@ -1397,7 +1522,7 @@
           </button>
         </section>
         <section class="bridge-card">
-          <p><strong>pattern bridge:</strong> ${escapeHTML(lesson.bridge)}</p>
+          <p><strong>what this means:</strong> ${escapeHTML(lesson.bridge)}</p>
         </section>
         ${renderBoard({
           position: lesson.position,
@@ -1414,7 +1539,7 @@
             <span class="step-count">${state.stepIndex + 1}/${lesson.steps.length}</span>
           </div>
           <div>
-            <p class="eyebrow">micro step</p>
+            <p class="eyebrow">tiny step</p>
             <h2 class="micro-title">${escapeHTML(step.title)}</h2>
             <p class="micro-body">${escapeHTML(step.body)}</p>
           </div>
@@ -1426,22 +1551,22 @@
           </div>
         </section>
         <section class="micro-card">
-          <p class="eyebrow">piece legend</p>
+          <p class="eyebrow">piece guide</p>
           ${renderLegendCards(false)}
         </section>
       `;
     }
 
     function renderLegendView() {
-      stageLabel.textContent = "piece legend";
+      stageLabel.textContent = "piece guide";
       const active = PIECE_BY_ID[state.activeLegend] || PIECES[0];
       stage.innerHTML = `
         <section class="macro-card">
           <div>
-            <p class="eyebrow">macro view</p>
+            <p class="eyebrow">big picture</p>
             <h2 class="macro-title">the chess set</h2>
-            <p class="plain-text">Six piece types repeat on both sides. Learn the symbol, the job, then the move.</p>
-            <p class="plain-text">This is like learning the tile categories before trying to build a complete hand.</p>
+            <p class="plain-text">Both teams have the same six kinds of pieces. Learn the shape first, then the move.</p>
+            <p class="plain-text">Start by recognizing what each piece looks like. You do not need strategy yet.</p>
           </div>
         </section>
         <section class="practice-card">
@@ -1459,7 +1584,7 @@
         </section>
         <section class="micro-card">
           <p class="eyebrow">quick rule</p>
-          <p class="micro-body">A legal move is a move your piece can make that does not leave your king in check.</p>
+          <p class="micro-body">An allowed move means the piece is allowed to go there, and your king is still safe after.</p>
         </section>
       `;
     }
@@ -1474,10 +1599,10 @@
       stage.innerHTML = `
         <section class="macro-card">
           <div>
-            <p class="eyebrow">macro view</p>
+            <p class="eyebrow">big picture</p>
             <h2 class="macro-title">practice slowly</h2>
             <p class="plain-text">One question at a time. No timer. No penalty.</p>
-            <p class="plain-text">Use the board like a pattern check: identify the set, then tap the answer.</p>
+            <p class="plain-text">Read the question. Look at the board. Tap one answer.</p>
           </div>
         </section>
         ${renderBoard({
@@ -1490,7 +1615,7 @@
 
       coach.innerHTML = `
         <section class="micro-card">
-          <p class="eyebrow">micro check</p>
+          <p class="eyebrow">tiny practice</p>
           <h2 class="micro-title">${escapeHTML(item.title)}</h2>
           <p class="micro-body">${escapeHTML(item.body)}</p>
           <div class="feedback" role="status">${escapeHTML(state.feedback || "Tap the answer on the board.")}</div>
@@ -1500,7 +1625,7 @@
           </div>
         </section>
         <section class="micro-card">
-          <p class="eyebrow">piece legend</p>
+          <p class="eyebrow">piece guide</p>
           ${renderLegendCards(false)}
         </section>
       `;
