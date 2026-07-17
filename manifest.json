@@ -1,0 +1,19 @@
+{
+  "name": "Girl Chess",
+  "short_name": "Girl Chess",
+  "description": "A soft pink chess tutor for total beginners.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fdeaf4",
+  "theme_color": "#fdeaf4",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}

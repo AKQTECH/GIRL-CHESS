@@ -1,0 +1,1686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#fdeaf4">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Girl Chess">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Girl Chess</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.jpg" type="image/jpeg">
+  <link rel="apple-touch-icon" href="icon.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --white: #fffafd;
+      --pink-1: #fdeaf4;
+      --pink-2: #f8d2e4;
+      --pink-3: #efafd0;
+      --pink-4: #d982b2;
+      --pink-5: #bd6798;
+      --black: #151015;
+      --line: rgba(21, 16, 21, 0.86);
+      --line-soft: rgba(21, 16, 21, 0.46);
+      --shadow: 0 18px 34px rgba(21, 16, 21, 0.12);
+      --square: min(9.8vw, 62px);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-height: 100%;
+      background: var(--pink-1);
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--black);
+      font-family: Arial, Helvetica, sans-serif;
+      background:
+        linear-gradient(90deg, rgba(217, 130, 178, 0.16) 1px, transparent 1px),
+        linear-gradient(rgba(217, 130, 178, 0.16) 1px, transparent 1px),
+        var(--pink-1);
+      background-size: 24px 24px;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      color: var(--black);
+      cursor: pointer;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.52;
+    }
+
+    .app-shell {
+      width: min(1260px, 100%);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: max(18px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 14px;
+      align-items: center;
+      padding: 12px;
+      border: 2px solid var(--line);
+      background: rgba(255, 250, 253, 0.94);
+      box-shadow: var(--shadow);
+    }
+
+    .brand {
+      margin: 0;
+      font-family: "Silkscreen", monospace;
+      font-size: clamp(25px, 4vw, 48px);
+      line-height: 0.9;
+      text-transform: lowercase;
+    }
+
+    .view-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .tab-button,
+    .small-button,
+    .primary-button,
+    .lesson-button,
+    .legend-card,
+    .square {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .tab-button {
+      min-height: 40px;
+      padding: 8px 13px;
+      border: 2px solid var(--line);
+      background: var(--pink-2);
+      font-family: "Silkscreen", monospace;
+      font-size: 12px;
+      text-transform: lowercase;
+    }
+
+    .tab-button[aria-pressed="true"] {
+      background: var(--white);
+      box-shadow: inset 0 -5px 0 var(--pink-3);
+    }
+
+    .progress-pill {
+      min-height: 40px;
+      display: grid;
+      place-items: center;
+      padding: 8px 12px;
+      border: 2px solid var(--line);
+      background: var(--pink-3);
+      font-family: "Silkscreen", monospace;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .layout {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(214px, 260px) minmax(360px, 1fr) minmax(282px, 350px);
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .panel,
+    .board-panel {
+      min-height: 0;
+      border: 2px solid var(--line);
+      background: rgba(255, 250, 253, 0.94);
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .window-bar {
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 6px 9px;
+      border-bottom: 2px solid var(--line);
+      background: var(--pink-2);
+      font-family: "Silkscreen", monospace;
+      font-size: 12px;
+      text-transform: lowercase;
+    }
+
+    .window-buttons {
+      display: flex;
+      gap: 5px;
+      flex: 0 0 auto;
+    }
+
+    .window-buttons span {
+      width: 14px;
+      height: 14px;
+      border: 1.5px solid var(--line);
+      background: var(--white);
+    }
+
+    .scroll-area {
+      min-height: 0;
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 12px;
+    }
+
+    .lesson-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .lesson-button {
+      width: 100%;
+      min-height: 54px;
+      display: grid;
+      grid-template-columns: 36px 1fr;
+      gap: 8px;
+      align-items: center;
+      padding: 8px;
+      border: 2px solid var(--line-soft);
+      background: var(--white);
+      text-align: left;
+    }
+
+    .lesson-button.is-active {
+      border-color: var(--line);
+      background: var(--pink-2);
+    }
+
+    .lesson-number {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border: 2px solid var(--line);
+      background: var(--pink-3);
+      font-family: "Silkscreen", monospace;
+      font-size: 12px;
+    }
+
+    .lesson-name {
+      display: block;
+      font-family: "Silkscreen", monospace;
+      font-size: 12px;
+      line-height: 1.2;
+      text-transform: lowercase;
+    }
+
+    .lesson-status {
+      display: block;
+      margin-top: 3px;
+      font-size: 12px;
+      line-height: 1.2;
+    }
+
+    .lesson-button.is-done .lesson-status::after {
+      content: "done";
+    }
+
+    .lesson-button:not(.is-done) .lesson-status::after {
+      content: "not done";
+    }
+
+    .stage-scroll {
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .macro-card,
+    .micro-card,
+    .bridge-card,
+    .practice-card,
+    .about-card {
+      border: 2px solid var(--line);
+      background: var(--white);
+    }
+
+    .macro-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: start;
+      padding: 14px;
+    }
+
+    .eyebrow,
+    .mini-label {
+      margin: 0 0 7px;
+      font-family: "Silkscreen", monospace;
+      font-size: 12px;
+      text-transform: lowercase;
+    }
+
+    .macro-title,
+    .micro-title,
+    .view-title {
+      margin: 0;
+      font-family: "Silkscreen", monospace;
+      font-size: clamp(24px, 3vw, 38px);
+      line-height: 1;
+      text-transform: lowercase;
+    }
+
+    .plain-text {
+      margin: 10px 0 0;
+      max-width: 64ch;
+      font-size: 16px;
+      line-height: 1.45;
+    }
+
+    .bridge-card {
+      padding: 12px;
+      background: var(--pink-1);
+    }
+
+    .bridge-card p {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.45;
+    }
+
+    .focus-toggle {
+      min-height: 42px;
+      padding: 8px 12px;
+      border: 2px solid var(--line);
+      background: var(--pink-2);
+      font-family: "Silkscreen", monospace;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .focus-toggle[aria-pressed="true"] {
+      background: var(--pink-3);
+    }
+
+    .board-wrap {
+      border: 2px solid var(--line);
+      background: linear-gradient(145deg, var(--pink-2), var(--pink-3));
+      padding: clamp(10px, 2vw, 18px);
+    }
+
+    .board-frame {
+      width: min(100%, 610px);
+      margin: 0 auto;
+      padding: 10px;
+      border: 2px solid var(--line);
+      border-radius: 8px;
+      background: var(--pink-2);
+      box-shadow: inset 0 0 0 4px rgba(255, 250, 253, 0.52);
+    }
+
+    .files {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      margin: 0 22px 6px;
+      font-family: "Silkscreen", monospace;
+      font-size: 11px;
+      text-align: center;
+    }
+
+    .board-row {
+      display: grid;
+      grid-template-columns: 22px 1fr 22px;
+    }
+
+    .ranks {
+      display: grid;
+      grid-template-rows: repeat(8, 1fr);
+      align-items: center;
+      justify-items: center;
+      font-family: "Silkscreen", monospace;
+      font-size: 11px;
+    }
+
+    .board {
+      aspect-ratio: 1;
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      border: 2px solid var(--line);
+      background: var(--white);
+    }
+
+    .square {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      min-height: 0;
+      border: 0;
+      padding: 0;
+      background: var(--white);
+    }
+
+    .square.dark {
+      background: var(--pink-2);
+    }
+
+    .square.is-highlight::after,
+    .square.is-target::after,
+    .square.is-found::after {
+      content: "";
+      position: absolute;
+      inset: 31%;
+      border: 2px solid var(--line);
+      border-radius: 999px;
+      background: var(--pink-3);
+      pointer-events: none;
+    }
+
+    .square.is-found::after {
+      inset: 24%;
+      background: var(--pink-4);
+    }
+
+    .square.is-selected {
+      outline: 4px solid var(--pink-5);
+      outline-offset: -7px;
+    }
+
+    .piece {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      place-items: center;
+      width: 78%;
+      height: 78%;
+      color: var(--pink-3);
+      font-family: "Times New Roman", "Apple Symbols", serif;
+      font-size: clamp(24px, 5.2vw, 56px);
+      line-height: 1;
+      pointer-events: none;
+    }
+
+    .piece.dark-piece {
+      color: var(--pink-5);
+    }
+
+    .micro-card {
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .step-meter {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .meter-track {
+      height: 12px;
+      border: 2px solid var(--line);
+      background: var(--white);
+    }
+
+    .meter-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--pink-4);
+      transition: width 180ms ease;
+    }
+
+    .step-count {
+      font-family: "Silkscreen", monospace;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .micro-body {
+      margin: 0;
+      font-size: 17px;
+      line-height: 1.45;
+    }
+
+    .feedback {
+      min-height: 46px;
+      display: flex;
+      align-items: center;
+      padding: 10px;
+      border: 2px solid var(--line-soft);
+      background: var(--pink-1);
+      font-size: 15px;
+      line-height: 1.35;
+    }
+
+    .action-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .action-row.three {
+      grid-template-columns: 1fr 1fr 1fr;
+    }
+
+    .small-button,
+    .primary-button {
+      min-height: 46px;
+      border: 2px solid var(--line);
+      font-family: "Silkscreen", monospace;
+      font-size: 12px;
+      text-transform: lowercase;
+    }
+
+    .small-button {
+      background: var(--white);
+    }
+
+    .primary-button {
+      background: var(--pink-4);
+    }
+
+    .legend-grid {
+      display: grid;
+      gap: 8px;
+    }
+
+    .legend-card {
+      width: 100%;
+      min-height: 70px;
+      display: grid;
+      grid-template-columns: 54px 1fr;
+      gap: 9px;
+      align-items: center;
+      padding: 8px;
+      border: 2px solid var(--line-soft);
+      background: var(--white);
+      text-align: left;
+    }
+
+    .legend-card.is-active {
+      background: var(--pink-2);
+      border-color: var(--line);
+    }
+
+    .legend-symbol {
+      width: 52px;
+      height: 52px;
+      display: grid;
+      place-items: center;
+      border: 2px solid var(--line);
+      background: var(--pink-1);
+      color: var(--pink-5);
+      font-family: "Times New Roman", "Apple Symbols", serif;
+      font-size: 36px;
+      line-height: 1;
+    }
+
+    .legend-name {
+      display: block;
+      font-family: "Silkscreen", monospace;
+      font-size: 12px;
+      text-transform: lowercase;
+    }
+
+    .legend-role {
+      display: block;
+      margin-top: 3px;
+      font-size: 13px;
+      line-height: 1.25;
+    }
+
+    .full-legend {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .full-legend .legend-card {
+      min-height: 92px;
+    }
+
+    .practice-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .practice-card,
+    .about-card {
+      padding: 14px;
+    }
+
+    .version {
+      margin: 12px 0 0;
+      font-family: "Silkscreen", monospace;
+      font-size: 12px;
+    }
+
+    .is-focus .rail-panel,
+    .is-focus .legend-panel,
+    .is-focus .bridge-card {
+      display: none;
+    }
+
+    .is-focus .layout {
+      grid-template-columns: minmax(360px, 1fr) minmax(282px, 350px);
+    }
+
+    .is-focus .board-panel {
+      grid-column: 1;
+    }
+
+    @media (max-width: 1040px) {
+      .layout,
+      .is-focus .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .rail-panel,
+      .legend-panel {
+        max-height: none;
+      }
+
+      .lesson-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 680px) {
+      .app-shell {
+        padding-left: 10px;
+        padding-right: 10px;
+      }
+
+      .topbar,
+      .macro-card {
+        grid-template-columns: 1fr;
+      }
+
+      .view-tabs {
+        justify-content: start;
+      }
+
+      .progress-pill {
+        justify-self: start;
+      }
+
+      .lesson-list,
+      .full-legend {
+        grid-template-columns: 1fr;
+      }
+
+      .stage-scroll {
+        padding: 10px;
+      }
+
+      .board-frame {
+        padding: 7px;
+      }
+
+      .files {
+        margin-left: 16px;
+        margin-right: 16px;
+        font-size: 9px;
+      }
+
+      .board-row {
+        grid-template-columns: 16px 1fr 16px;
+      }
+
+      .ranks {
+        font-size: 9px;
+      }
+
+      .piece {
+        font-size: clamp(19px, 8vw, 36px);
+      }
+
+      .action-row,
+      .action-row.three {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell" id="app">
+    <header class="topbar">
+      <h1 class="brand">girl<br>chess</h1>
+      <nav class="view-tabs" aria-label="Views">
+        <button class="tab-button" type="button" data-view="learn">learn</button>
+        <button class="tab-button" type="button" data-view="legend">legend</button>
+        <button class="tab-button" type="button" data-view="practice">practice</button>
+        <button class="tab-button" type="button" data-view="about">about</button>
+      </nav>
+      <div class="progress-pill" id="progressPill">0/10 done</div>
+    </header>
+
+    <main class="layout" id="layout">
+      <aside class="panel rail-panel" aria-label="Lesson list">
+        <div class="window-bar">
+          <span>lessons</span>
+          <span class="window-buttons"><span></span><span></span><span></span></span>
+        </div>
+        <div class="scroll-area">
+          <div class="lesson-list" id="lessonList"></div>
+        </div>
+      </aside>
+
+      <section class="board-panel" aria-label="Chess lesson">
+        <div class="window-bar">
+          <span id="stageLabel">lesson</span>
+          <span class="window-buttons"><span></span><span></span><span></span></span>
+        </div>
+        <div class="scroll-area stage-scroll" id="stage"></div>
+      </section>
+
+      <aside class="panel legend-panel" aria-label="Coach and piece legend">
+        <div class="window-bar">
+          <span>coach</span>
+          <span class="window-buttons"><span></span><span></span><span></span></span>
+        </div>
+        <div class="scroll-area" id="coach"></div>
+      </aside>
+    </main>
+  </div>
+
+  <script>
+    const APP_VERSION = "Girl Chess v1.2";
+    const STORAGE_KEY = "girl-chess-progress-v1";
+    const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
+    const RANKS = [8, 7, 6, 5, 4, 3, 2, 1];
+
+    const PIECES = [
+      {
+        id: "king",
+        name: "king",
+        symbol: "♚",
+        role: "Protect this piece.",
+        move: "Moves one square in any direction.",
+        bridge: "Like the key tile in a hand: everything changes around it."
+      },
+      {
+        id: "queen",
+        name: "queen",
+        symbol: "♛",
+        role: "Most powerful piece.",
+        move: "Moves straight or diagonal, any distance.",
+        bridge: "A flexible tile: it can work in many patterns."
+      },
+      {
+        id: "rook",
+        name: "rook",
+        symbol: "♜",
+        role: "Straight-line piece.",
+        move: "Moves up, down, left, or right.",
+        bridge: "Think clean rows and columns."
+      },
+      {
+        id: "bishop",
+        name: "bishop",
+        symbol: "♝",
+        role: "Diagonal piece.",
+        move: "Moves only on diagonals.",
+        bridge: "It stays in one color family the whole game."
+      },
+      {
+        id: "knight",
+        name: "knight",
+        symbol: "♞",
+        role: "Jumping piece.",
+        move: "Moves in an L shape: two, then one.",
+        bridge: "A pattern jump. It does not need a clear path."
+      },
+      {
+        id: "pawn",
+        name: "pawn",
+        symbol: "♟",
+        role: "Small piece with special rules.",
+        move: "Moves forward. Captures diagonally.",
+        bridge: "Tiny piece, weird rules. Learn it slowly."
+      }
+    ];
+
+    const PIECE_BY_ID = Object.fromEntries(PIECES.map(piece => [piece.id, piece]));
+
+    function p(square, piece, side) {
+      return { square, piece, side };
+    }
+
+    const STARTING_POSITION = [
+      p("a8", "rook", "dark"), p("b8", "knight", "dark"), p("c8", "bishop", "dark"), p("d8", "queen", "dark"),
+      p("e8", "king", "dark"), p("f8", "bishop", "dark"), p("g8", "knight", "dark"), p("h8", "rook", "dark"),
+      p("a7", "pawn", "dark"), p("b7", "pawn", "dark"), p("c7", "pawn", "dark"), p("d7", "pawn", "dark"),
+      p("e7", "pawn", "dark"), p("f7", "pawn", "dark"), p("g7", "pawn", "dark"), p("h7", "pawn", "dark"),
+      p("a2", "pawn", "soft"), p("b2", "pawn", "soft"), p("c2", "pawn", "soft"), p("d2", "pawn", "soft"),
+      p("e2", "pawn", "soft"), p("f2", "pawn", "soft"), p("g2", "pawn", "soft"), p("h2", "pawn", "soft"),
+      p("a1", "rook", "soft"), p("b1", "knight", "soft"), p("c1", "bishop", "soft"), p("d1", "queen", "soft"),
+      p("e1", "king", "soft"), p("f1", "bishop", "soft"), p("g1", "knight", "soft"), p("h1", "rook", "soft")
+    ];
+
+    const POSITIONS = {
+      start: STARTING_POSITION,
+      empty: [],
+      boardMap: [p("d4", "queen", "soft")],
+      legend: STARTING_POSITION,
+      pawns: [p("d2", "pawn", "soft"), p("e4", "pawn", "dark"), p("c3", "pawn", "dark"), p("e3", "pawn", "dark")],
+      rooks: [p("d4", "rook", "soft"), p("d7", "pawn", "dark"), p("a4", "pawn", "dark"), p("d2", "pawn", "soft")],
+      bishops: [p("d4", "bishop", "soft"), p("b6", "pawn", "dark"), p("f6", "pawn", "dark"), p("b2", "pawn", "soft")],
+      queen: [p("d4", "queen", "soft"), p("d7", "pawn", "dark"), p("g7", "pawn", "dark"), p("a4", "pawn", "dark")],
+      knight: [p("d5", "knight", "soft"), p("d6", "pawn", "soft"), p("e5", "pawn", "soft"), p("b6", "pawn", "dark"), p("f4", "pawn", "dark")],
+      king: [p("e1", "king", "soft"), p("e8", "king", "dark"), p("e7", "rook", "soft"), p("a8", "rook", "dark")],
+      mate: [p("h8", "king", "dark"), p("g7", "queen", "soft"), p("h6", "king", "soft")]
+    };
+
+    const LESSONS = [
+      {
+        id: "whole-game",
+        title: "start here",
+        label: "lesson 01: start here",
+        macroTitle: "whole game",
+        macro: [
+          "Chess is a turn-by-turn board game with two sides.",
+          "The objective is checkmate: trap the king so it cannot escape."
+        ],
+        bridge: "Mahjong bridge: first learn the set, then the goal. In chess, the set is pieces plus squares.",
+        position: "start",
+        steps: [
+          {
+            title: "two sides",
+            body: "Soft pink and dark pink have the same pieces.",
+            targets: ["a1", "a8"],
+            completeMode: "all",
+            prompt: "Tap one rook from each side.",
+            success: "Good. Same piece, two teams."
+          },
+          {
+            title: "objective",
+            body: "The king is the piece every plan revolves around.",
+            targets: ["e1", "e8"],
+            completeMode: "all",
+            prompt: "Tap both kings.",
+            success: "Yes. Protect yours, trap theirs."
+          },
+          {
+            title: "turns",
+            body: "One side moves once. Then the other side moves once.",
+            targets: ["d2"],
+            completeMode: "one",
+            prompt: "Tap a soft pink piece to take the first turn.",
+            success: "That is the rhythm: one move at a time."
+          }
+        ]
+      },
+      {
+        id: "board-map",
+        title: "board map",
+        label: "lesson 02: board map",
+        macroTitle: "64 squares",
+        macro: [
+          "The board is 8 by 8.",
+          "Every square has an address, like d4 or e1."
+        ],
+        bridge: "Mahjong bridge: like sorting tiles by suit and number, coordinates help you name exactly what you are looking at.",
+        position: "empty",
+        steps: [
+          {
+            title: "files",
+            body: "Files are columns. They are letters: a through h.",
+            targets: ["a4", "h4"],
+            completeMode: "all",
+            prompt: "Tap a4 and h4.",
+            success: "Yes. Same rank, different files."
+          },
+          {
+            title: "ranks",
+            body: "Ranks are rows. They are numbers: 1 through 8.",
+            targets: ["d1", "d8"],
+            completeMode: "all",
+            prompt: "Tap d1 and d8.",
+            success: "Exactly. Same file, different ranks."
+          },
+          {
+            title: "address",
+            body: "A square name is letter first, number second.",
+            targets: ["d4"],
+            completeMode: "one",
+            prompt: "Tap d4.",
+            success: "Perfect. That is a square address."
+          }
+        ]
+      },
+      {
+        id: "piece-legend",
+        title: "piece legend",
+        label: "lesson 03: piece legend",
+        macroTitle: "know the set",
+        macro: [
+          "There are six piece types.",
+          "Each type has a job and a movement pattern."
+        ],
+        bridge: "Mahjong bridge: learn the symbols before trying to build a full hand. Here, learn the pieces before trying to plan.",
+        position: "legend",
+        steps: [
+          {
+            title: "major pieces",
+            body: "Queen and rooks cover long lines.",
+            targets: ["d1", "a1", "h1"],
+            completeMode: "all",
+            prompt: "Tap the queen and both rooks.",
+            success: "Good. These are your big line pieces."
+          },
+          {
+            title: "minor pieces",
+            body: "Bishops and knights create patterns.",
+            targets: ["b1", "c1", "f1", "g1"],
+            completeMode: "all",
+            prompt: "Tap both bishops and both knights.",
+            success: "Yes. These pieces shape the middle of the board."
+          },
+          {
+            title: "pawns",
+            body: "Pawns are small, but they shape everything.",
+            targets: ["a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2"],
+            completeMode: "one",
+            prompt: "Tap any soft pink pawn.",
+            success: "Right. Pawns are the front row."
+          }
+        ]
+      },
+      {
+        id: "pawns",
+        title: "pawns",
+        label: "lesson 04: pawns",
+        macroTitle: "tiny rules",
+        macro: [
+          "Pawns move forward, but capture diagonally.",
+          "On their first move, they may move one or two squares."
+        ],
+        bridge: "Mahjong bridge: this is the special-case piece. Do not rush it. Pawns have exceptions.",
+        position: "pawns",
+        steps: [
+          {
+            title: "forward",
+            body: "A soft pink pawn moves up the board.",
+            targets: ["d3", "d4"],
+            completeMode: "one",
+            prompt: "Tap a legal first move for the pawn on d2.",
+            success: "Yes. First move can be one or two squares."
+          },
+          {
+            title: "capture",
+            body: "Pawns capture one square diagonally forward.",
+            targets: ["c3", "e3"],
+            completeMode: "one",
+            prompt: "Tap a pawn capture square.",
+            success: "Exactly. Pawns do not capture straight ahead."
+          },
+          {
+            title: "not sideways",
+            body: "A pawn does not move sideways.",
+            targets: ["d2"],
+            completeMode: "one",
+            prompt: "Tap the pawn to reset the rule.",
+            success: "Right. Forward to move, diagonal to capture."
+          }
+        ]
+      },
+      {
+        id: "rooks",
+        title: "rooks",
+        label: "lesson 05: rooks",
+        macroTitle: "straight lines",
+        macro: [
+          "Rooks move in straight lines.",
+          "They move up, down, left, or right."
+        ],
+        bridge: "Mahjong bridge: rook movement is clean sorting. Same row or same column.",
+        position: "rooks",
+        steps: [
+          {
+            title: "same file",
+            body: "The rook can move up or down if the path is clear.",
+            targets: ["d5", "d6"],
+            completeMode: "one",
+            prompt: "Tap a clear vertical rook move.",
+            success: "Yes. Straight up the file."
+          },
+          {
+            title: "same rank",
+            body: "The rook can move left or right if the path is clear.",
+            targets: ["b4", "c4", "e4", "f4", "g4", "h4"],
+            completeMode: "one",
+            prompt: "Tap a clear horizontal rook move.",
+            success: "Good. Straight across the rank."
+          },
+          {
+            title: "capture",
+            body: "A rook captures by landing on an enemy piece.",
+            targets: ["a4", "d7"],
+            completeMode: "one",
+            prompt: "Tap a rook capture.",
+            success: "Correct. Capture means take that square."
+          }
+        ]
+      },
+      {
+        id: "bishops",
+        title: "bishops",
+        label: "lesson 06: bishops",
+        macroTitle: "diagonals",
+        macro: [
+          "Bishops move diagonally.",
+          "A bishop always stays on the same square color."
+        ],
+        bridge: "Mahjong bridge: this is a color-family pattern. Once you see the diagonal, the options get smaller.",
+        position: "bishops",
+        steps: [
+          {
+            title: "diagonal",
+            body: "A bishop moves on slants.",
+            targets: ["c5", "e5", "c3", "e3"],
+            completeMode: "one",
+            prompt: "Tap a nearby bishop move.",
+            success: "Yes. That is a diagonal."
+          },
+          {
+            title: "long line",
+            body: "If the path is clear, a bishop can move far.",
+            targets: ["a7", "g7", "g1"],
+            completeMode: "one",
+            prompt: "Tap a longer bishop move.",
+            success: "Right. Diagonal distance can be short or long."
+          },
+          {
+            title: "capture",
+            body: "A bishop captures on a diagonal.",
+            targets: ["b6", "f6"],
+            completeMode: "one",
+            prompt: "Tap a bishop capture.",
+            success: "Correct. Same diagonal, enemy square."
+          }
+        ]
+      },
+      {
+        id: "queen",
+        title: "queen",
+        label: "lesson 07: queen",
+        macroTitle: "most flexible",
+        macro: [
+          "The queen combines rook and bishop movement.",
+          "She moves straight or diagonal, any distance."
+        ],
+        bridge: "Mahjong bridge: the queen is flexible. More options means pause and choose carefully.",
+        position: "queen",
+        steps: [
+          {
+            title: "straight",
+            body: "The queen can move like a rook.",
+            targets: ["d5", "d6", "d7", "a4"],
+            completeMode: "one",
+            prompt: "Tap a straight queen move or capture.",
+            success: "Yes. That is the rook side of the queen."
+          },
+          {
+            title: "diagonal",
+            body: "The queen can also move like a bishop.",
+            targets: ["e5", "f6", "g7", "c5", "b6"],
+            completeMode: "one",
+            prompt: "Tap a diagonal queen move or capture.",
+            success: "Good. That is the bishop side of the queen."
+          },
+          {
+            title: "not a knight",
+            body: "The queen does not jump in an L shape.",
+            targets: ["d4"],
+            completeMode: "one",
+            prompt: "Tap the queen to remember: no jumping.",
+            success: "Right. Powerful, but not a jumper."
+          }
+        ]
+      },
+      {
+        id: "knight",
+        title: "knights",
+        label: "lesson 08: knights",
+        macroTitle: "the jump",
+        macro: [
+          "Knights move in an L shape: two squares, then one.",
+          "Knights can jump over pieces."
+        ],
+        bridge: "Mahjong bridge: this is a pattern lookup. Do not trace a line. Look for the L.",
+        position: "knight",
+        steps: [
+          {
+            title: "the shape",
+            body: "From d5, the knight has L-shaped landing squares.",
+            targets: ["b4", "b6", "c3", "c7", "e3", "e7", "f4", "f6"],
+            completeMode: "one",
+            prompt: "Tap one legal knight move.",
+            success: "Yes. Two squares, then one."
+          },
+          {
+            title: "jump",
+            body: "Pieces beside the knight do not block it.",
+            targets: ["f4", "b6"],
+            completeMode: "one",
+            prompt: "Tap a legal jump capture.",
+            success: "Correct. The knight can jump."
+          },
+          {
+            title: "not straight",
+            body: "A knight never moves in a straight line.",
+            targets: ["d5"],
+            completeMode: "one",
+            prompt: "Tap the knight to reset the idea.",
+            success: "Good. Find the L, not a line."
+          }
+        ]
+      },
+      {
+        id: "king",
+        title: "king and check",
+        label: "lesson 09: king and check",
+        macroTitle: "protect the king",
+        macro: [
+          "The king moves one square in any direction.",
+          "Check means the king is under attack."
+        ],
+        bridge: "Mahjong bridge: check is a warning state. Stop and answer the warning before making another plan.",
+        position: "king",
+        steps: [
+          {
+            title: "king move",
+            body: "The king moves one square.",
+            targets: ["d1", "d2", "e2", "f2", "f1"],
+            completeMode: "one",
+            prompt: "Tap one legal king move from e1.",
+            success: "Yes. One square only."
+          },
+          {
+            title: "check",
+            body: "A rook on e7 attacks down the e-file.",
+            targets: ["e8"],
+            completeMode: "one",
+            prompt: "Tap the dark king in check.",
+            success: "Right. The king is being attacked."
+          },
+          {
+            title: "must answer",
+            body: "When in check, you must move, block, or capture the threat.",
+            targets: ["e7"],
+            completeMode: "one",
+            prompt: "Tap the checking piece.",
+            success: "Good. That is the threat to answer."
+          }
+        ]
+      },
+      {
+        id: "checkmate",
+        title: "checkmate",
+        label: "lesson 10: checkmate",
+        macroTitle: "the finish",
+        macro: [
+          "Checkmate means the king is in check and has no safe escape.",
+          "That is how a chess game ends."
+        ],
+        bridge: "Mahjong bridge: like completing the hand, checkmate is the finished pattern. You are checking every escape square.",
+        position: "mate",
+        steps: [
+          {
+            title: "check",
+            body: "The queen on g7 attacks the king on h8.",
+            targets: ["h8"],
+            completeMode: "one",
+            prompt: "Tap the king in check.",
+            success: "Yes. The king is under attack."
+          },
+          {
+            title: "escape squares",
+            body: "A king needs a safe square to survive.",
+            targets: ["g8", "h7"],
+            completeMode: "all",
+            prompt: "Tap the escape squares to inspect them.",
+            success: "Good. Both are covered."
+          },
+          {
+            title: "mate",
+            body: "If the king is trapped, the game is over.",
+            targets: ["g7"],
+            completeMode: "one",
+            prompt: "Tap the piece creating checkmate.",
+            success: "That is checkmate."
+          }
+        ]
+      }
+    ];
+
+    const PRACTICE = [
+      {
+        title: "find both kings",
+        body: "Tap e1 and e8.",
+        position: "start",
+        targets: ["e1", "e8"],
+        completeMode: "all"
+      },
+      {
+        title: "name d4",
+        body: "Tap the square d4.",
+        position: "empty",
+        targets: ["d4"],
+        completeMode: "one"
+      },
+      {
+        title: "knight check",
+        body: "Tap one legal knight move from d5.",
+        position: "knight",
+        targets: ["b4", "b6", "c3", "c7", "e3", "e7", "f4", "f6"],
+        completeMode: "one"
+      }
+    ];
+
+    const defaultState = {
+      view: "learn",
+      lessonIndex: 0,
+      stepIndex: 0,
+      completedLessons: {},
+      foundByStep: {},
+      feedback: "",
+      activeLegend: "king",
+      focusMode: false,
+      practiceIndex: 0
+    };
+
+    let state = loadState();
+
+    const app = document.getElementById("app");
+    const stage = document.getElementById("stage");
+    const coach = document.getElementById("coach");
+    const lessonList = document.getElementById("lessonList");
+    const progressPill = document.getElementById("progressPill");
+    const stageLabel = document.getElementById("stageLabel");
+
+    function loadState() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        return { ...defaultState, ...saved };
+      } catch (error) {
+        return { ...defaultState };
+      }
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function currentLesson() {
+      return LESSONS[state.lessonIndex] || LESSONS[0];
+    }
+
+    function currentStep() {
+      const lesson = currentLesson();
+      return lesson.steps[state.stepIndex] || lesson.steps[0];
+    }
+
+    function currentStepKey() {
+      return `${currentLesson().id}:${state.stepIndex}`;
+    }
+
+    function getFoundSet(key = currentStepKey()) {
+      return new Set(state.foundByStep[key] || []);
+    }
+
+    function setFoundSet(found, key = currentStepKey()) {
+      state.foundByStep[key] = Array.from(found);
+    }
+
+    function pieceAt(positionName, square) {
+      return (POSITIONS[positionName] || []).find(item => item.square === square);
+    }
+
+    function isDarkSquare(fileIndex, rank) {
+      const rankIndex = 8 - rank;
+      return (fileIndex + rankIndex) % 2 === 1;
+    }
+
+    function escapeHTML(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function isStepReady(step, found) {
+      if (!step.targets || step.targets.length === 0) return true;
+      if (step.completeMode === "one") return found.size >= 1;
+      return step.targets.every(square => found.has(square));
+    }
+
+    function updateCompletedLesson() {
+      const lesson = currentLesson();
+      const allStepsReady = lesson.steps.every((step, index) => {
+        const found = getFoundSet(`${lesson.id}:${index}`);
+        return isStepReady(step, found);
+      });
+      if (allStepsReady) {
+        state.completedLessons[lesson.id] = true;
+      }
+    }
+
+    function progressText() {
+      const completed = LESSONS.filter(lesson => state.completedLessons[lesson.id]).length;
+      return `${completed}/${LESSONS.length} done`;
+    }
+
+    function renderBoard(options) {
+      const position = options.position || "start";
+      const targets = new Set(options.targets || []);
+      const highlights = new Set(options.highlights || []);
+      const found = options.found || new Set();
+      const selected = new Set(options.selected || []);
+
+      const topFiles = `<div class="files">${FILES.map(file => `<span>${file}</span>`).join("")}</div>`;
+      const rankLabels = `<div class="ranks">${RANKS.map(rank => `<span>${rank}</span>`).join("")}</div>`;
+      const squares = [];
+
+      for (const rank of RANKS) {
+        FILES.forEach((file, fileIndex) => {
+          const square = `${file}${rank}`;
+          const piece = pieceAt(position, square);
+          const classes = [
+            "square",
+            isDarkSquare(fileIndex, rank) ? "dark" : "light",
+            targets.has(square) ? "is-target" : "",
+            highlights.has(square) ? "is-highlight" : "",
+            found.has(square) ? "is-found" : "",
+            selected.has(square) ? "is-selected" : ""
+          ].filter(Boolean).join(" ");
+          const pieceMarkup = piece
+            ? `<span class="piece ${piece.side === "dark" ? "dark-piece" : "soft-piece"}" aria-hidden="true">${PIECE_BY_ID[piece.piece].symbol}</span>`
+            : "";
+          const label = piece
+            ? `${square}, ${piece.side} ${PIECE_BY_ID[piece.piece].name}`
+            : `${square}, empty`;
+          squares.push(`<button class="${classes}" type="button" data-square="${square}" aria-label="${escapeHTML(label)}">${pieceMarkup}</button>`);
+        });
+      }
+
+      return `
+        <div class="board-wrap">
+          <div class="board-frame">
+            ${topFiles}
+            <div class="board-row">
+              ${rankLabels}
+              <div class="board" aria-label="Chess board">${squares.join("")}</div>
+              ${rankLabels}
+            </div>
+            ${topFiles}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderLessonList() {
+      lessonList.innerHTML = LESSONS.map((lesson, index) => {
+        const isActive = index === state.lessonIndex && state.view === "learn";
+        const isDone = Boolean(state.completedLessons[lesson.id]);
+        return `
+          <button class="lesson-button ${isActive ? "is-active" : ""} ${isDone ? "is-done" : ""}" type="button" data-lesson="${index}">
+            <span class="lesson-number">${String(index + 1).padStart(2, "0")}</span>
+            <span>
+              <span class="lesson-name">${escapeHTML(lesson.title)}</span>
+              <span class="lesson-status"></span>
+            </span>
+          </button>
+        `;
+      }).join("");
+    }
+
+    function renderLegendCards(full = false) {
+      return `
+        <div class="${full ? "full-legend" : "legend-grid"}">
+          ${PIECES.map(piece => `
+            <button class="legend-card ${state.activeLegend === piece.id ? "is-active" : ""}" type="button" data-piece="${piece.id}">
+              <span class="legend-symbol" aria-hidden="true">${piece.symbol}</span>
+              <span>
+                <span class="legend-name">${piece.name}</span>
+                <span class="legend-role">${full ? `${piece.role} ${piece.move}` : piece.role}</span>
+              </span>
+            </button>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function renderLearn() {
+      const lesson = currentLesson();
+      const step = currentStep();
+      const key = currentStepKey();
+      const found = getFoundSet(key);
+      const stepReady = isStepReady(step, found);
+      const meter = ((state.stepIndex + (stepReady ? 1 : 0)) / lesson.steps.length) * 100;
+
+      stageLabel.textContent = lesson.label;
+      stage.innerHTML = `
+        <section class="macro-card">
+          <div>
+            <p class="eyebrow">macro view</p>
+            <h2 class="macro-title">${escapeHTML(lesson.macroTitle)}</h2>
+            ${lesson.macro.map(text => `<p class="plain-text">${escapeHTML(text)}</p>`).join("")}
+          </div>
+          <button class="focus-toggle" type="button" aria-pressed="${state.focusMode}" data-action="focus">
+            ${state.focusMode ? "show all" : "focus"}
+          </button>
+        </section>
+        <section class="bridge-card">
+          <p><strong>pattern bridge:</strong> ${escapeHTML(lesson.bridge)}</p>
+        </section>
+        ${renderBoard({
+          position: lesson.position,
+          targets: step.targets,
+          found,
+          selected: found
+        })}
+      `;
+
+      coach.innerHTML = `
+        <section class="micro-card">
+          <div class="step-meter">
+            <div class="meter-track" aria-hidden="true"><div class="meter-fill" style="width:${meter}%"></div></div>
+            <span class="step-count">${state.stepIndex + 1}/${lesson.steps.length}</span>
+          </div>
+          <div>
+            <p class="eyebrow">micro step</p>
+            <h2 class="micro-title">${escapeHTML(step.title)}</h2>
+            <p class="micro-body">${escapeHTML(step.body)}</p>
+          </div>
+          <div class="feedback" role="status">${escapeHTML(state.feedback || step.prompt || "Tap the board when the step asks you to.")}</div>
+          <div class="action-row three">
+            <button class="small-button" type="button" data-action="back" ${state.stepIndex === 0 ? "disabled" : ""}>back</button>
+            <button class="small-button" type="button" data-action="answer">show</button>
+            <button class="primary-button" type="button" data-action="next" ${stepReady ? "" : "disabled"}>${state.stepIndex === lesson.steps.length - 1 ? "finish" : "next"}</button>
+          </div>
+        </section>
+        <section class="micro-card">
+          <p class="eyebrow">piece legend</p>
+          ${renderLegendCards(false)}
+        </section>
+      `;
+    }
+
+    function renderLegendView() {
+      stageLabel.textContent = "piece legend";
+      const active = PIECE_BY_ID[state.activeLegend] || PIECES[0];
+      stage.innerHTML = `
+        <section class="macro-card">
+          <div>
+            <p class="eyebrow">macro view</p>
+            <h2 class="macro-title">the chess set</h2>
+            <p class="plain-text">Six piece types repeat on both sides. Learn the symbol, the job, then the move.</p>
+            <p class="plain-text">This is like learning the tile categories before trying to build a complete hand.</p>
+          </div>
+        </section>
+        <section class="practice-card">
+          <p class="eyebrow">tap a piece</p>
+          ${renderLegendCards(true)}
+        </section>
+      `;
+      coach.innerHTML = `
+        <section class="micro-card">
+          <p class="eyebrow">selected piece</p>
+          <h2 class="micro-title">${escapeHTML(active.name)}</h2>
+          <p class="micro-body">${escapeHTML(active.role)}</p>
+          <p class="plain-text">${escapeHTML(active.move)}</p>
+          <div class="feedback">${escapeHTML(active.bridge)}</div>
+        </section>
+        <section class="micro-card">
+          <p class="eyebrow">quick rule</p>
+          <p class="micro-body">A legal move is a move your piece can make that does not leave your king in check.</p>
+        </section>
+      `;
+    }
+
+    function renderPractice() {
+      const item = PRACTICE[state.practiceIndex] || PRACTICE[0];
+      const key = `practice:${state.practiceIndex}`;
+      const found = getFoundSet(key);
+      const ready = isStepReady(item, found);
+
+      stageLabel.textContent = "practice";
+      stage.innerHTML = `
+        <section class="macro-card">
+          <div>
+            <p class="eyebrow">macro view</p>
+            <h2 class="macro-title">practice slowly</h2>
+            <p class="plain-text">One question at a time. No timer. No penalty.</p>
+            <p class="plain-text">Use the board like a pattern check: identify the set, then tap the answer.</p>
+          </div>
+        </section>
+        ${renderBoard({
+          position: item.position,
+          targets: item.targets,
+          found,
+          selected: found
+        })}
+      `;
+
+      coach.innerHTML = `
+        <section class="micro-card">
+          <p class="eyebrow">micro check</p>
+          <h2 class="micro-title">${escapeHTML(item.title)}</h2>
+          <p class="micro-body">${escapeHTML(item.body)}</p>
+          <div class="feedback" role="status">${escapeHTML(state.feedback || "Tap the answer on the board.")}</div>
+          <div class="action-row">
+            <button class="small-button" type="button" data-action="practice-reset">reset</button>
+            <button class="primary-button" type="button" data-action="practice-next" ${ready ? "" : "disabled"}>next</button>
+          </div>
+        </section>
+        <section class="micro-card">
+          <p class="eyebrow">piece legend</p>
+          ${renderLegendCards(false)}
+        </section>
+      `;
+    }
+
+    function renderAbout() {
+      stageLabel.textContent = "about";
+      stage.innerHTML = `
+        <section class="about-card">
+          <p class="eyebrow">about</p>
+          <h2 class="view-title">girl chess</h2>
+          <p class="plain-text">A soft pink chess tutor for total beginners.</p>
+          <p class="plain-text">The app teaches in two layers: the whole idea first, then one small action at a time.</p>
+          <p class="version">${APP_VERSION}<br>Built for April Korto Quioh</p>
+        </section>
+      `;
+      coach.innerHTML = `
+        <section class="micro-card">
+          <p class="eyebrow">storage</p>
+          <p class="micro-body">Progress saves on this device.</p>
+          <button class="small-button" type="button" data-action="reset-progress">reset progress</button>
+        </section>
+      `;
+    }
+
+    function render() {
+      app.classList.toggle("is-focus", state.focusMode && state.view === "learn");
+      progressPill.textContent = progressText();
+      document.querySelectorAll(".tab-button").forEach(button => {
+        button.setAttribute("aria-pressed", String(button.dataset.view === state.view));
+      });
+      renderLessonList();
+      if (state.view === "learn") renderLearn();
+      if (state.view === "legend") renderLegendView();
+      if (state.view === "practice") renderPractice();
+      if (state.view === "about") renderAbout();
+      saveState();
+    }
+
+    function handleSquare(square) {
+      if (state.view === "learn") {
+        const lesson = currentLesson();
+        const step = currentStep();
+        const found = getFoundSet();
+        if (!step.targets || step.targets.length === 0) {
+          state.feedback = "No tap needed here. Press next.";
+          render();
+          return;
+        }
+        if (step.targets.includes(square)) {
+          found.add(square);
+          setFoundSet(found);
+          state.feedback = isStepReady(step, found) ? step.success : "Good. Find the next one.";
+          updateCompletedLesson();
+        } else {
+          state.feedback = "Not that square yet. Use show if you want a hint.";
+        }
+        render();
+        return;
+      }
+
+      if (state.view === "practice") {
+        const item = PRACTICE[state.practiceIndex] || PRACTICE[0];
+        const key = `practice:${state.practiceIndex}`;
+        const found = getFoundSet(key);
+        if (item.targets.includes(square)) {
+          found.add(square);
+          setFoundSet(found, key);
+          state.feedback = isStepReady(item, found) ? "Correct." : "Good. Keep going.";
+        } else {
+          state.feedback = "Not that square yet. Try again.";
+        }
+        render();
+      }
+    }
+
+    function showAnswer() {
+      const step = currentStep();
+      const found = new Set(step.targets || []);
+      setFoundSet(found);
+      state.feedback = step.targets && step.targets.length
+        ? `Answer shown: ${step.targets.join(", ")}.`
+        : "No board tap is needed here.";
+      updateCompletedLesson();
+      render();
+    }
+
+    function goNext() {
+      const lesson = currentLesson();
+      if (state.stepIndex < lesson.steps.length - 1) {
+        state.stepIndex += 1;
+        state.feedback = "";
+      } else {
+        state.completedLessons[lesson.id] = true;
+        if (state.lessonIndex < LESSONS.length - 1) {
+          state.lessonIndex += 1;
+          state.stepIndex = 0;
+          state.feedback = "Next lesson loaded.";
+        } else {
+          state.feedback = "Lesson path complete.";
+        }
+      }
+      render();
+    }
+
+    function goBack() {
+      if (state.stepIndex > 0) {
+        state.stepIndex -= 1;
+        state.feedback = "";
+        render();
+      }
+    }
+
+    document.addEventListener("click", event => {
+      const squareButton = event.target.closest("[data-square]");
+      if (squareButton) {
+        handleSquare(squareButton.dataset.square);
+        return;
+      }
+
+      const lessonButton = event.target.closest("[data-lesson]");
+      if (lessonButton) {
+        state.view = "learn";
+        state.lessonIndex = Number(lessonButton.dataset.lesson);
+        state.stepIndex = 0;
+        state.feedback = "";
+        render();
+        return;
+      }
+
+      const viewButton = event.target.closest("[data-view]");
+      if (viewButton) {
+        state.view = viewButton.dataset.view;
+        state.feedback = "";
+        render();
+        return;
+      }
+
+      const pieceButton = event.target.closest("[data-piece]");
+      if (pieceButton) {
+        state.activeLegend = pieceButton.dataset.piece;
+        render();
+        return;
+      }
+
+      const actionButton = event.target.closest("[data-action]");
+      if (!actionButton) return;
+      const action = actionButton.dataset.action;
+
+      if (action === "focus") {
+        state.focusMode = !state.focusMode;
+        render();
+      }
+      if (action === "back") goBack();
+      if (action === "answer") showAnswer();
+      if (action === "next") goNext();
+      if (action === "practice-reset") {
+        state.foundByStep[`practice:${state.practiceIndex}`] = [];
+        state.feedback = "";
+        render();
+      }
+      if (action === "practice-next") {
+        state.practiceIndex = (state.practiceIndex + 1) % PRACTICE.length;
+        state.feedback = "";
+        render();
+      }
+      if (action === "reset-progress") {
+        state = { ...defaultState };
+        localStorage.removeItem(STORAGE_KEY);
+        render();
+      }
+    });
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("service-worker.js").catch(() => {});
+      });
+    }
+
+    render();
+  </script>
+</body>
+</html>
