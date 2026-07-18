@@ -323,6 +323,115 @@
       text-transform: lowercase;
     }
 
+    .move-map-card {
+      display: grid;
+      grid-template-columns: minmax(168px, 260px) 1fr;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+      border: 2px solid var(--line);
+      background: var(--white);
+    }
+
+    .move-map-grid {
+      aspect-ratio: 1;
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      grid-template-rows: repeat(7, 1fr);
+      border: 2px solid var(--line);
+      background: var(--white);
+    }
+
+    .map-cell {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      min-height: 0;
+      background: var(--white);
+    }
+
+    .map-cell.dark {
+      background: var(--pink-2);
+    }
+
+    .map-cell.is-move {
+      background: var(--pink-3);
+      box-shadow: inset 0 0 0 2px rgba(21, 16, 21, 0.28);
+    }
+
+    .map-cell.is-take {
+      background: var(--pink-4);
+      box-shadow: inset 0 0 0 2px rgba(21, 16, 21, 0.34);
+    }
+
+    .map-cell.is-center {
+      box-shadow: inset 0 0 0 2px rgba(21, 16, 21, 0.48);
+    }
+
+    .map-piece {
+      position: relative;
+      z-index: 1;
+      color: var(--pink-5);
+      font-family: "Arial Unicode MS", "Apple Symbols", "Noto Sans Symbols 2", "Times New Roman", serif;
+      font-size: clamp(30px, 9vw, 54px);
+      font-weight: 900;
+      line-height: 1;
+      text-shadow:
+        -0.55px -0.55px 0 rgba(21, 16, 21, 0.75),
+        0.55px -0.55px 0 rgba(21, 16, 21, 0.75),
+        -0.55px 0.55px 0 rgba(21, 16, 21, 0.75),
+        0.55px 0.55px 0 rgba(21, 16, 21, 0.75);
+      -webkit-text-stroke: 0.18px rgba(21, 16, 21, 0.75);
+    }
+
+    .move-map-copy {
+      min-width: 0;
+    }
+
+    .move-map-title {
+      margin: 0;
+      font-family: "Silkscreen", monospace;
+      font-size: 14px;
+      line-height: 1.15;
+      text-transform: lowercase;
+    }
+
+    .move-map-text {
+      margin: 8px 0 0;
+      font-size: 15px;
+      line-height: 1.45;
+    }
+
+    .move-map-key {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-top: 10px;
+      font-family: "Silkscreen", monospace;
+      font-size: 10px;
+      line-height: 1;
+      text-transform: lowercase;
+    }
+
+    .move-key {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .move-key::before {
+      content: "";
+      width: 14px;
+      height: 14px;
+      border: 1.5px solid var(--line-soft);
+      background: var(--pink-2);
+    }
+
+    .move-key.take::before {
+      background: var(--pink-3);
+    }
+
     .focus-toggle {
       min-height: 42px;
       padding: 8px 12px;
@@ -676,6 +785,10 @@
         padding: 10px;
       }
 
+      .move-map-card {
+        grid-template-columns: 1fr;
+      }
+
       .board-frame {
         padding: 7px;
       }
@@ -748,7 +861,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "Girl Chess v2.0";
+    const APP_VERSION = "Girl Chess v2.1";
     const STORAGE_KEY = "girl-chess-progress-v1";
     const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
     const RANKS = [8, 7, 6, 5, 4, 3, 2, 1];
@@ -1418,49 +1531,118 @@
         title: "pawn demo",
         body: "Pawns walk straight forward. They take one slanted step forward.",
         position: "pawns",
+        moveMap: "pawn",
         highlights: ["d3", "d4", "c3", "e3"]
       },
       taking: {
         title: "taking demo",
         body: "Taking means your piece lands on the enemy piece's square. The enemy piece leaves the board.",
         position: "rooks",
+        moveMap: "rook",
         highlights: ["d4", "a4", "d7"]
       },
       rooks: {
         title: "rook demo",
         body: "Rooks move in straight lines: up, down, left, or right. No slanted moves.",
         position: "rooks",
+        moveMap: "rook",
         highlights: ["d5", "d6", "a4", "b4", "c4", "e4", "f4", "g4", "h4"]
       },
       bishops: {
         title: "bishop demo",
         body: "Bishops move on slanted lines. If the path is clear, the slanted line can be short or long.",
         position: "bishops",
+        moveMap: "bishop",
         highlights: ["c5", "e5", "c3", "e3", "a7", "g7", "g1"]
       },
       queen: {
         title: "queen demo",
         body: "The queen combines the rook and bishop: straight lines or slanted lines, but no jumping.",
         position: "queen",
+        moveMap: "queen",
         highlights: ["d5", "d6", "d7", "a4", "e5", "f6", "g7", "c5", "b6"]
       },
       knights: {
         title: "knight demo",
         body: "Knights jump in an L shape. They are the odd piece, so you only need to spot the landing squares.",
         position: "knight",
+        moveMap: "knight",
         highlights: ["b4", "b6", "c3", "c7", "e3", "e7", "f4", "f6"]
       },
       king: {
         title: "check demo",
         body: "Check means the king is in danger. The next move must make that king safe.",
         position: "king",
+        moveMap: "king",
         highlights: ["e8", "e7"]
       },
       checkmate: {
         title: "checkmate demo",
         body: "Checkmate means the king is in danger and has no safe move left. That ends the game.",
         position: "mate",
+        moveMap: "queen",
         highlights: ["h8", "g8", "h7", "g7"]
+      }
+    };
+
+    const MOVE_MAPS = {
+      pawn: {
+        piece: "pawn",
+        title: "pawn choreography",
+        body: "Straight square means move. Slanted squares mean take.",
+        marks: [
+          [2, 3, "move"],
+          [2, 2, "take"],
+          [2, 4, "take"]
+        ]
+      },
+      rook: {
+        piece: "rook",
+        title: "rook choreography",
+        body: "The rook moves in a plus sign: up, down, left, or right.",
+        marks: [
+          [0, 3], [1, 3], [2, 3], [4, 3], [5, 3], [6, 3],
+          [3, 0], [3, 1], [3, 2], [3, 4], [3, 5], [3, 6]
+        ]
+      },
+      bishop: {
+        piece: "bishop",
+        title: "bishop choreography",
+        body: "The bishop moves on an X: slanted lines only.",
+        marks: [
+          [0, 0], [1, 1], [2, 2], [4, 4], [5, 5], [6, 6],
+          [0, 6], [1, 5], [2, 4], [4, 2], [5, 1], [6, 0]
+        ]
+      },
+      queen: {
+        piece: "queen",
+        title: "queen choreography",
+        body: "The queen gets the plus sign and the X.",
+        marks: [
+          [0, 3], [1, 3], [2, 3], [4, 3], [5, 3], [6, 3],
+          [3, 0], [3, 1], [3, 2], [3, 4], [3, 5], [3, 6],
+          [0, 0], [1, 1], [2, 2], [4, 4], [5, 5], [6, 6],
+          [0, 6], [1, 5], [2, 4], [4, 2], [5, 1], [6, 0]
+        ]
+      },
+      knight: {
+        piece: "knight",
+        title: "knight choreography",
+        body: "The knight lands in L-shape spots: two squares, then one to the side.",
+        marks: [
+          [1, 2], [1, 4], [2, 1], [2, 5],
+          [4, 1], [4, 5], [5, 2], [5, 4]
+        ]
+      },
+      king: {
+        piece: "king",
+        title: "king choreography",
+        body: "The king moves one square around himself.",
+        marks: [
+          [2, 2], [2, 3], [2, 4],
+          [3, 2], [3, 4],
+          [4, 2], [4, 3], [4, 4]
+        ]
       }
     };
 
@@ -1481,6 +1663,7 @@
     };
 
     let state = loadState();
+    let feedbackTimer = null;
 
     const app = document.getElementById("app");
     const stage = document.getElementById("stage");
@@ -1521,6 +1704,38 @@
 
     function setFoundSet(found, key = currentStepKey()) {
       state.foundByStep[key] = Array.from(found);
+    }
+
+    function clearFlashFeedback() {
+      if (feedbackTimer) {
+        window.clearTimeout(feedbackTimer);
+        feedbackTimer = null;
+      }
+    }
+
+    function flashFeedback(message, restoreMessage) {
+      clearFlashFeedback();
+      state.feedback = message;
+      render();
+      feedbackTimer = window.setTimeout(() => {
+        feedbackTimer = null;
+        if (state.feedback === message) {
+          state.feedback = restoreMessage || "";
+          render();
+        }
+      }, 950);
+    }
+
+    function scrollStageIntoView() {
+      const target = document.querySelector(".board-panel");
+      if (!target) return;
+      window.requestAnimationFrame(() => {
+        const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        target.scrollIntoView({
+          behavior: reduceMotion ? "auto" : "smooth",
+          block: "start"
+        });
+      });
     }
 
     function currentAnswerWasShown(key = currentStepKey()) {
@@ -1638,6 +1853,46 @@
       `;
     }
 
+    function renderMoveMap(mapId) {
+      const map = MOVE_MAPS[mapId];
+      if (!map) return "";
+      const marks = new Map(map.marks.map(([row, col, type]) => [`${row}:${col}`, type || "move"]));
+      const cells = [];
+      for (let row = 0; row < 7; row += 1) {
+        for (let col = 0; col < 7; col += 1) {
+          const key = `${row}:${col}`;
+          const markType = marks.get(key);
+          const isCenter = row === 3 && col === 3;
+          const classes = [
+            "map-cell",
+            (row + col) % 2 === 1 ? "dark" : "",
+            markType === "take" ? "is-take" : "",
+            markType && markType !== "take" ? "is-move" : "",
+            isCenter ? "is-center" : ""
+          ].filter(Boolean).join(" ");
+          cells.push(`
+            <span class="${classes}" aria-hidden="true">
+              ${isCenter ? `<span class="map-piece">${PIECE_BY_ID[map.piece].symbol}</span>` : ""}
+            </span>
+          `);
+        }
+      }
+
+      return `
+        <section class="move-map-card" aria-label="${escapeHTML(map.title)}">
+          <div class="move-map-grid">${cells.join("")}</div>
+          <div class="move-map-copy">
+            <h2 class="move-map-title">${escapeHTML(map.title)}</h2>
+            <p class="move-map-text">${escapeHTML(map.body)}</p>
+            <div class="move-map-key" aria-hidden="true">
+              <span class="move-key">can move</span>
+              ${mapId === "pawn" ? `<span class="move-key take">can take</span>` : ""}
+            </div>
+          </div>
+        </section>
+      `;
+    }
+
     function renderLessonList() {
       lessonList.innerHTML = LESSONS.map((lesson, index) => {
         const isActive = index === state.lessonIndex && state.view === "learn";
@@ -1702,6 +1957,7 @@
             <h2 class="demo-title">${escapeHTML(demo.title)}</h2>
             <p>${escapeHTML(demo.body)}</p>
           </section>
+          ${renderMoveMap(demo.moveMap)}
           ${renderBoard({
             position: demo.position,
             highlights: demo.highlights
@@ -1713,7 +1969,7 @@
             <div>
               <p class="eyebrow">watch first</p>
               <h2 class="micro-title">demo</h2>
-              <p class="micro-body">Look at the highlighted squares. This is the idea before the test.</p>
+              <p class="micro-body">Look at the map and highlighted squares. This is the idea before the test.</p>
             </div>
             <div class="feedback" role="status">${escapeHTML(state.feedback || "When this makes sense, start the test.")}</div>
             <div class="action-row">
@@ -1906,6 +2162,7 @@
     }
 
     function handleSquare(square) {
+      clearFlashFeedback();
       if (state.view === "learn") {
         const lesson = currentLesson();
         const step = currentStep();
@@ -1925,7 +2182,8 @@
           }
           updateCompletedLesson();
         } else {
-          state.feedback = "Not that square. Try again.";
+          flashFeedback("No, not that one.", step.prompt || "Tap the board when the step asks you to.");
+          return;
         }
         render();
         return;
@@ -1940,7 +2198,8 @@
           setFoundSet(found, key);
           state.feedback = isStepReady(item, found) ? "Correct." : "Good. Keep going.";
         } else {
-          state.feedback = "Not that square yet. Try again.";
+          flashFeedback("No, not that one.", "Tap the answer on the board.");
+          return;
         }
         render();
       }
@@ -2000,17 +2259,20 @@
 
       const lessonButton = event.target.closest("[data-lesson]");
       if (lessonButton) {
+        clearFlashFeedback();
         state.view = "learn";
         state.lessonIndex = Number(lessonButton.dataset.lesson);
         state.stepIndex = 0;
         state.lessonMode = "demo";
         state.feedback = "";
         render();
+        scrollStageIntoView();
         return;
       }
 
       const viewButton = event.target.closest("[data-view]");
       if (viewButton) {
+        clearFlashFeedback();
         state.view = viewButton.dataset.view;
         if (state.view === "learn") state.lessonMode = state.lessonMode || "demo";
         if (state.view === "practice") state.practiceShowAnswer = false;
@@ -2021,6 +2283,7 @@
 
       const pieceButton = event.target.closest("[data-piece]");
       if (pieceButton) {
+        clearFlashFeedback();
         state.activeLegend = pieceButton.dataset.piece;
         render();
         return;
@@ -2028,6 +2291,7 @@
 
       const actionButton = event.target.closest("[data-action]");
       if (!actionButton) return;
+      clearFlashFeedback();
       const action = actionButton.dataset.action;
 
       if (action === "focus") {
@@ -2077,6 +2341,7 @@
         state.lessonMode = "demo";
         state.feedback = "";
         render();
+        scrollStageIntoView();
       }
       if (action === "reset-progress") {
         state = { ...defaultState };
