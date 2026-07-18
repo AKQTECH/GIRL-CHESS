@@ -861,7 +861,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "Girl Chess v2.1";
+    const APP_VERSION = "Girl Chess v2.3";
     const STORAGE_KEY = "girl-chess-progress-v1";
     const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
     const RANKS = [8, 7, 6, 5, 4, 3, 2, 1];
@@ -945,8 +945,169 @@
       queen: [p("d4", "queen", "soft"), p("d7", "pawn", "dark"), p("g7", "pawn", "dark"), p("a4", "pawn", "dark")],
       knight: [p("d5", "knight", "soft"), p("d6", "pawn", "soft"), p("e5", "pawn", "soft"), p("b6", "pawn", "dark"), p("f4", "pawn", "dark")],
       king: [p("e1", "king", "soft"), p("e8", "king", "dark"), p("e7", "rook", "soft"), p("a8", "rook", "dark")],
-      mate: [p("h8", "king", "dark"), p("g7", "queen", "soft"), p("h6", "king", "soft")]
+      mate: [p("h8", "king", "dark"), p("g7", "queen", "soft"), p("h6", "king", "soft")],
+      pawnMoved: [p("d3", "pawn", "soft"), p("e8", "king", "dark"), p("e1", "king", "soft")],
+      castle: [p("e1", "king", "soft"), p("h1", "rook", "soft"), p("e8", "king", "dark")],
+      promotion: [p("g7", "pawn", "soft"), p("e1", "king", "soft"), p("e8", "king", "dark")],
+      promotionAfter: [p("g8", "queen", "soft"), p("e1", "king", "soft"), p("e8", "king", "dark")],
+      enPassant: [p("e5", "pawn", "soft"), p("d5", "pawn", "dark"), p("e1", "king", "soft"), p("e8", "king", "dark")],
+      stalemate: [p("h8", "king", "dark"), p("g6", "queen", "soft"), p("f7", "king", "soft")]
     };
+
+    function fileNumber(file) {
+      return FILES.indexOf(file);
+    }
+
+    function squareName(fileIndex, rank) {
+      if (fileIndex < 0 || fileIndex > 7 || rank < 1 || rank > 8) return null;
+      return `${FILES[fileIndex]}${rank}`;
+    }
+
+    function squareParts(square) {
+      return { fileIndex: fileNumber(square[0]), rank: Number(square.slice(1)) };
+    }
+
+    function distanceFrom(fromSquare, toSquare) {
+      const from = squareParts(fromSquare);
+      const to = squareParts(toSquare);
+      return {
+        file: Math.abs(to.fileIndex - from.fileIndex),
+        rank: Math.abs(to.rank - from.rank)
+      };
+    }
+
+    function legalDestinations(position, fromSquare) {
+      const piece = position.find(item => item.square === fromSquare);
+      if (!piece) return { moves: [], captures: [] };
+
+      const occupied = new Map(position.map(item => [item.square, item]));
+      const moves = [];
+      const captures = [];
+      const addLanding = square => {
+        if (!square) return false;
+        const occupant = occupied.get(square);
+        if (!occupant) {
+          moves.push(square);
+          return true;
+        }
+        if (occupant.side !== piece.side) captures.push(square);
+        return false;
+      };
+      const { fileIndex, rank } = squareParts(fromSquare);
+
+      if (piece.piece === "pawn") {
+        const direction = piece.side === "soft" ? 1 : -1;
+        const startRank = piece.side === "soft" ? 2 : 7;
+        const oneAhead = squareName(fileIndex, rank + direction);
+        if (oneAhead && !occupied.has(oneAhead)) {
+          moves.push(oneAhead);
+          const twoAhead = squareName(fileIndex, rank + direction * 2);
+          if (rank === startRank && twoAhead && !occupied.has(twoAhead)) moves.push(twoAhead);
+        }
+        [-1, 1].forEach(offset => {
+          const square = squareName(fileIndex + offset, rank + direction);
+          const occupant = square ? occupied.get(square) : null;
+          if (occupant && occupant.side !== piece.side) captures.push(square);
+        });
+      }
+
+      if (piece.piece === "knight") {
+        [[1, 2], [2, 1], [2, -1], [1, -2], [-1, -2], [-2, -1], [-2, 1], [-1, 2]].forEach(([fileOffset, rankOffset]) => {
+          addLanding(squareName(fileIndex + fileOffset, rank + rankOffset));
+        });
+      }
+
+      if (piece.piece === "king") {
+        [-1, 0, 1].forEach(fileOffset => {
+          [-1, 0, 1].forEach(rankOffset => {
+            if (fileOffset || rankOffset) addLanding(squareName(fileIndex + fileOffset, rank + rankOffset));
+          });
+        });
+      }
+
+      const slideDirections = {
+        rook: [[1, 0], [-1, 0], [0, 1], [0, -1]],
+        bishop: [[1, 1], [1, -1], [-1, 1], [-1, -1]],
+        queen: [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]
+      };
+
+      (slideDirections[piece.piece] || []).forEach(([fileOffset, rankOffset]) => {
+        let nextFile = fileIndex + fileOffset;
+        let nextRank = rank + rankOffset;
+        while (nextFile >= 0 && nextFile <= 7 && nextRank >= 1 && nextRank <= 8) {
+          const keepGoing = addLanding(squareName(nextFile, nextRank));
+          if (!keepGoing) break;
+          nextFile += fileOffset;
+          nextRank += rankOffset;
+        }
+      });
+
+      return { moves, captures };
+    }
+
+    function attachTargetAssert(targets, assert) {
+      Object.defineProperty(targets, "_targetAssert", { value: assert, enumerable: false });
+      return targets;
+    }
+
+    function squares(...targets) {
+      return targets;
+    }
+
+    function sideTargets(positionName, side) {
+      return POSITIONS[positionName].filter(item => item.side === side).map(item => item.square);
+    }
+
+    function pieceTargets(positionName, piece, side = null) {
+      return POSITIONS[positionName]
+        .filter(item => item.piece === piece && (!side || item.side === side))
+        .map(item => item.square);
+    }
+
+    function legalTargets(positionName, fromSquare, mode = "all", filter = null) {
+      const legal = legalDestinations(POSITIONS[positionName], fromSquare);
+      const all = mode === "moves"
+        ? legal.moves
+        : mode === "captures"
+          ? legal.captures
+          : [...legal.moves, ...legal.captures];
+      return attachTargetAssert(
+        all.filter(square => !filter || filter(square)),
+        { kind: "legal", positionName, fromSquare, mode, filter }
+      );
+    }
+
+    function specialTargets(rule, ...targets) {
+      return attachTargetAssert(targets, { kind: "special", rule });
+    }
+
+    function onlyStraightFrom(fromSquare) {
+      return square => {
+        const distance = distanceFrom(fromSquare, square);
+        return distance.file === 0 || distance.rank === 0;
+      };
+    }
+
+    function onlySlantedFrom(fromSquare) {
+      return square => {
+        const distance = distanceFrom(fromSquare, square);
+        return distance.file === distance.rank;
+      };
+    }
+
+    function nearbyFrom(fromSquare) {
+      return square => {
+        const distance = distanceFrom(fromSquare, square);
+        return Math.max(distance.file, distance.rank) === 1;
+      };
+    }
+
+    function farFrom(fromSquare) {
+      return square => {
+        const distance = distanceFrom(fromSquare, square);
+        return Math.max(distance.file, distance.rank) > 1;
+      };
+    }
 
     const LESSONS = [
       {
@@ -965,7 +1126,7 @@
           {
             title: "your team",
             body: "Soft pink pieces are your pieces.",
-            targets: ["a1", "d1", "e1"],
+            targets: sideTargets("start", "soft"),
             completeMode: "one",
             prompt: "Tap any soft pink piece.",
             success: "Yes. That piece is on your team."
@@ -973,7 +1134,7 @@
           {
             title: "their team",
             body: "Dark pink pieces are the other team's pieces.",
-            targets: ["a8", "d8", "e8"],
+            targets: sideTargets("start", "dark"),
             completeMode: "one",
             prompt: "Tap any dark pink piece.",
             success: "Yes. That is the other team."
@@ -981,7 +1142,7 @@
           {
             title: "the kings",
             body: "The king is the piece the whole game is about.",
-            targets: ["e1", "e8"],
+            targets: pieceTargets("start", "king"),
             completeMode: "all",
             prompt: "Tap both kings.",
             success: "These are the kings. Protect yours. Trap theirs."
@@ -1004,7 +1165,7 @@
           {
             title: "pick one",
             body: "You do not move the whole team. You choose one piece.",
-            targets: ["a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2"],
+            targets: sideTargets("start", "soft"),
             completeMode: "one",
             prompt: "Tap one soft pink piece.",
             success: "Right. That could be your one piece for this turn."
@@ -1012,7 +1173,7 @@
           {
             title: "move once",
             body: "After you move that piece, your turn is done.",
-            targets: ["d3", "d4"],
+            targets: legalTargets("start", "d2", "moves"),
             completeMode: "one",
             prompt: "Tap one square the pawn on d2 could move to.",
             success: "Yes. One piece, one move."
@@ -1020,7 +1181,7 @@
           {
             title: "then they go",
             body: "After your move, the other team gets a turn.",
-            targets: ["a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7"],
+            targets: pieceTargets("start", "pawn", "dark"),
             completeMode: "one",
             prompt: "Tap one dark pink pawn.",
             success: "Exactly. Turns go back and forth."
@@ -1043,7 +1204,7 @@
           {
             title: "letters",
             body: "Letters name the up-and-down columns.",
-            targets: ["a4", "h4"],
+            targets: squares("a4", "h4"),
             completeMode: "all",
             prompt: "Tap a4 and h4.",
             success: "Yes. Those are two different columns."
@@ -1051,7 +1212,7 @@
           {
             title: "numbers",
             body: "Numbers name the side-to-side rows.",
-            targets: ["d1", "d8"],
+            targets: squares("d1", "d8"),
             completeMode: "all",
             prompt: "Tap d1 and d8.",
             success: "Yes. Those are two different rows."
@@ -1059,7 +1220,7 @@
           {
             title: "square name",
             body: "A square name is letter first, number second.",
-            targets: ["d4"],
+            targets: squares("d4"),
             completeMode: "one",
             prompt: "Tap d4.",
             success: "Perfect. d4 means column d, row 4."
@@ -1082,7 +1243,7 @@
           {
             title: "king",
             body: "The king usually has a cross on top. This is the piece you protect.",
-            targets: ["e1", "e8"],
+            targets: pieceTargets("legend", "king"),
             completeMode: "one",
             prompt: "Tap a king.",
             success: "That is a king."
@@ -1090,7 +1251,7 @@
           {
             title: "queen",
             body: "The queen has a crown. She is the strongest mover.",
-            targets: ["d1", "d8"],
+            targets: pieceTargets("legend", "queen"),
             completeMode: "one",
             prompt: "Tap a queen.",
             success: "That is a queen."
@@ -1098,7 +1259,7 @@
           {
             title: "rook",
             body: "The rook looks like a little tower.",
-            targets: ["a1", "h1", "a8", "h8"],
+            targets: pieceTargets("legend", "rook"),
             completeMode: "one",
             prompt: "Tap a rook.",
             success: "That is a rook."
@@ -1106,7 +1267,7 @@
           {
             title: "bishop",
             body: "The bishop is the tall piece with a pointed top.",
-            targets: ["c1", "f1", "c8", "f8"],
+            targets: pieceTargets("legend", "bishop"),
             completeMode: "one",
             prompt: "Tap a bishop.",
             success: "That is a bishop."
@@ -1114,7 +1275,7 @@
           {
             title: "knight",
             body: "The knight looks like a horse head.",
-            targets: ["b1", "g1", "b8", "g8"],
+            targets: pieceTargets("legend", "knight"),
             completeMode: "one",
             prompt: "Tap a knight.",
             success: "That is a knight."
@@ -1122,7 +1283,7 @@
           {
             title: "pawns",
             body: "Pawns are the small pieces lined up in front.",
-            targets: ["a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2"],
+            targets: pieceTargets("legend", "pawn", "soft"),
             completeMode: "one",
             prompt: "Tap any soft pink pawn.",
             success: "Right. Pawns are the front row."
@@ -1137,6 +1298,7 @@
         macro: [
           "Pawns are the small pieces in front.",
           "A pawn usually moves forward one square.",
+          "A pawn can move two squares only the first time that exact pawn moves.",
           "A pawn takes on a slanted forward square."
         ],
         bridge: "Pawn rule: walk straight forward, take one slanted step forward.",
@@ -1145,7 +1307,7 @@
           {
             title: "walk forward",
             body: "A soft pink pawn moves toward the top of the board.",
-            targets: ["d3", "d4"],
+            targets: legalTargets("pawns", "d2", "moves"),
             completeMode: "one",
             prompt: "Tap a square the pawn on d2 can move to.",
             success: "Yes. Pawns walk forward."
@@ -1153,7 +1315,7 @@
           {
             title: "take slanted",
             body: "If an enemy piece is one slanted step ahead, the pawn can take it.",
-            targets: ["c3", "e3"],
+            targets: legalTargets("pawns", "d2", "captures"),
             completeMode: "one",
             prompt: "Tap a piece the pawn can take.",
             success: "Right. Pawns take on a slanted square."
@@ -1161,10 +1323,19 @@
           {
             title: "not sideways",
             body: "A pawn does not move sideways.",
-            targets: ["d2"],
+            targets: pieceTargets("pawns", "pawn", "soft"),
             completeMode: "one",
             prompt: "Tap the pawn to remember the rule.",
             success: "Forward to move. Slanted forward to take."
+          },
+          {
+            title: "after it moves",
+            body: "Once a pawn has moved, the two-square option is gone.",
+            position: "pawnMoved",
+            targets: legalTargets("pawnMoved", "d3", "moves"),
+            completeMode: "one",
+            prompt: "Tap where the pawn on d3 can move now.",
+            success: "Yes. Now it moves one square only."
           }
         ]
       },
@@ -1184,7 +1355,7 @@
           {
             title: "your rook",
             body: "A rook looks like a little tower.",
-            targets: ["d4"],
+            targets: pieceTargets("rooks", "rook", "soft"),
             completeMode: "one",
             prompt: "Tap the soft pink rook.",
             success: "Yes. That tower piece is a rook."
@@ -1192,7 +1363,7 @@
           {
             title: "same line",
             body: "This rook can see pieces in the same straight line.",
-            targets: ["a4", "d7"],
+            targets: legalTargets("rooks", "d4", "captures"),
             completeMode: "one",
             prompt: "Tap a dark pink piece in the rook's straight line.",
             success: "Right. The rook can reach that piece."
@@ -1200,7 +1371,7 @@
           {
             title: "take it",
             body: "The rook takes by landing on the enemy piece's square.",
-            targets: ["a4", "d7"],
+            targets: legalTargets("rooks", "d4", "captures"),
             completeMode: "one",
             prompt: "Tap a piece the rook can take.",
             success: "Yes. The rook would land there, and that piece would leave."
@@ -1223,7 +1394,7 @@
           {
             title: "up or down",
             body: "The rook can move up or down if the path is clear.",
-            targets: ["d5", "d6"],
+            targets: legalTargets("rooks", "d4", "moves", square => square[0] === "d" && Number(square.slice(1)) > 4),
             completeMode: "one",
             prompt: "Tap a square above the rook.",
             success: "Yes. That is straight up."
@@ -1231,7 +1402,7 @@
           {
             title: "left or right",
             body: "The rook can also move left or right if the path is clear.",
-            targets: ["b4", "c4", "e4", "f4", "g4", "h4"],
+            targets: legalTargets("rooks", "d4", "moves", square => square.endsWith("4") && square !== "d4"),
             completeMode: "one",
             prompt: "Tap a square beside the rook.",
             success: "Good. That is straight sideways."
@@ -1239,7 +1410,7 @@
           {
             title: "not slanted",
             body: "A rook does not move on a slanted line.",
-            targets: ["d4"],
+            targets: pieceTargets("rooks", "rook", "soft"),
             completeMode: "one",
             prompt: "Tap the rook to lock in the rule.",
             success: "Rook equals straight lines."
@@ -1262,7 +1433,7 @@
           {
             title: "nearby slant",
             body: "A bishop can move to a nearby slanted square.",
-            targets: ["c5", "e5", "c3", "e3"],
+            targets: legalTargets("bishops", "d4", "moves", square => nearbyFrom("d4")(square)),
             completeMode: "one",
             prompt: "Tap a nearby slanted square.",
             success: "Yes. That is how a bishop moves."
@@ -1270,7 +1441,7 @@
           {
             title: "far slant",
             body: "If the path is clear, a bishop can go far on the same slanted line.",
-            targets: ["a7", "g7", "g1"],
+            targets: legalTargets("bishops", "d4", "moves", square => farFrom("d4")(square)),
             completeMode: "one",
             prompt: "Tap a far slanted square.",
             success: "Right. Same slanted line."
@@ -1278,7 +1449,7 @@
           {
             title: "take on slant",
             body: "A bishop takes pieces that sit on its slanted line.",
-            targets: ["b6", "f6"],
+            targets: legalTargets("bishops", "d4", "captures"),
             completeMode: "one",
             prompt: "Tap a piece the bishop can take.",
             success: "Correct. Same slanted line, enemy piece."
@@ -1301,7 +1472,7 @@
           {
             title: "straight",
             body: "The queen can move up, down, left, or right.",
-            targets: ["d5", "d6", "d7", "a4"],
+            targets: legalTargets("queen", "d4", "all", square => onlyStraightFrom("d4")(square)),
             completeMode: "one",
             prompt: "Tap a straight queen move.",
             success: "Yes. The queen can move straight."
@@ -1309,7 +1480,7 @@
           {
             title: "slanted",
             body: "The queen can also move on a slanted line.",
-            targets: ["e5", "f6", "g7", "c5", "b6"],
+            targets: legalTargets("queen", "d4", "all", square => onlySlantedFrom("d4")(square)),
             completeMode: "one",
             prompt: "Tap a slanted queen move.",
             success: "Good. The queen can move slanted too."
@@ -1317,7 +1488,7 @@
           {
             title: "no jumping",
             body: "The queen is powerful, but she cannot jump over pieces.",
-            targets: ["d4"],
+            targets: pieceTargets("queen", "queen", "soft"),
             completeMode: "one",
             prompt: "Tap the queen to remember: clear path.",
             success: "Right. The queen needs a clear path."
@@ -1340,7 +1511,7 @@
           {
             title: "L shape",
             body: "The knight does not move in a straight or slanted line.",
-            targets: ["b4", "b6", "c3", "c7", "e3", "e7", "f4", "f6"],
+            targets: legalTargets("knight", "d5", "all"),
             completeMode: "one",
             prompt: "Tap one square the knight can jump to.",
             success: "Yes. That is a knight move."
@@ -1348,7 +1519,7 @@
           {
             title: "jump",
             body: "Pieces beside the knight do not block it.",
-            targets: ["f4", "b6"],
+            targets: legalTargets("knight", "d5", "captures"),
             completeMode: "one",
             prompt: "Tap a square the knight can still reach.",
             success: "Correct. Knights can jump."
@@ -1356,7 +1527,7 @@
           {
             title: "weird one",
             body: "The knight is the piece that takes the most practice.",
-            targets: ["d5"],
+            targets: pieceTargets("knight", "knight", "soft"),
             completeMode: "one",
             prompt: "Tap the knight to finish.",
             success: "Good. For knights, look for the L."
@@ -1379,7 +1550,7 @@
           {
             title: "king move",
             body: "The king moves one square in any direction.",
-            targets: ["d1", "d2", "e2", "f2", "f1"],
+            targets: legalTargets("king", "e1", "moves"),
             completeMode: "one",
             prompt: "Tap one square the king can move to.",
             success: "Yes. One square."
@@ -1387,7 +1558,7 @@
           {
             title: "danger",
             body: "The soft pink rook is pointing at the dark pink king.",
-            targets: ["e8"],
+            targets: pieceTargets("king", "king", "dark"),
             completeMode: "one",
             prompt: "Tap the dark pink king.",
             success: "That king is in danger. That is check."
@@ -1395,7 +1566,7 @@
           {
             title: "make safe",
             body: "When a king is in check, the next move must make it safe.",
-            targets: ["e7"],
+            targets: pieceTargets("king", "rook", "soft"),
             completeMode: "one",
             prompt: "Tap the piece causing the danger.",
             success: "Good. The danger comes from that rook."
@@ -1418,7 +1589,7 @@
           {
             title: "in danger",
             body: "The soft pink queen is putting the dark pink king in danger.",
-            targets: ["h8"],
+            targets: pieceTargets("mate", "king", "dark"),
             completeMode: "one",
             prompt: "Tap the dark pink king.",
             success: "Yes. That king is in danger."
@@ -1426,7 +1597,7 @@
           {
             title: "no safe square",
             body: "A trapped king has nowhere safe to go.",
-            targets: ["g8", "h7"],
+            targets: squares("g8", "h7"),
             completeMode: "all",
             prompt: "Tap the two nearby squares.",
             success: "Those squares are not safe."
@@ -1434,10 +1605,161 @@
           {
             title: "game over",
             body: "The queen is the piece trapping the king.",
-            targets: ["g7"],
+            targets: pieceTargets("mate", "queen", "soft"),
             completeMode: "one",
             prompt: "Tap the queen.",
             success: "That is checkmate. The game ends."
+          }
+        ]
+      },
+      {
+        id: "castling",
+        title: "castling",
+        label: "lesson 13: castling",
+        macroTitle: "king plus rook",
+        macro: [
+          "Castling is one special move with two pieces.",
+          "The king moves two squares toward a rook.",
+          "Then that rook jumps to the other side of the king.",
+          "The path must be clear, and the king must be safe the whole way."
+        ],
+        bridge: "Castle means: move the king two squares, then tuck the rook beside it. You cannot castle out of check.",
+        position: "castle",
+        steps: [
+          {
+            title: "king lands",
+            body: "On this side, the king ends on g1.",
+            targets: specialTargets("castling", "g1"),
+            completeMode: "one",
+            prompt: "Tap where the king ends up.",
+            success: "Yes. The king lands on g1."
+          },
+          {
+            title: "rook lands",
+            body: "The rook moves to the square right beside the king.",
+            targets: specialTargets("castling", "f1"),
+            completeMode: "one",
+            prompt: "Tap where the rook ends up.",
+            success: "Yes. The rook lands on f1."
+          },
+          {
+            title: "when allowed",
+            body: "Castling works only if neither piece has moved, the path is clear, and the king is not in danger.",
+            targets: specialTargets("castling", "e1", "h1"),
+            completeMode: "all",
+            prompt: "Tap the king and rook that must not have moved.",
+            success: "Right. Both pieces need their first move."
+          }
+        ]
+      },
+      {
+        id: "promotion",
+        title: "promotion",
+        label: "lesson 14: promotion",
+        macroTitle: "last row upgrade",
+        macro: [
+          "Promotion means a pawn reaches the last row.",
+          "That pawn turns into another piece.",
+          "Most of the time, you choose a queen."
+        ],
+        bridge: "Promotion means: pawn reaches the end, pawn becomes a stronger piece.",
+        position: "promotion",
+        steps: [
+          {
+            title: "last row",
+            body: "The soft pink pawn is one step from the last row.",
+            targets: legalTargets("promotion", "g7", "moves"),
+            completeMode: "one",
+            prompt: "Tap where the pawn goes to promote.",
+            success: "Yes. That pawn reaches the last row."
+          },
+          {
+            title: "new queen",
+            body: "Keep this simple: the pawn becomes a queen.",
+            position: "promotionAfter",
+            targets: pieceTargets("promotionAfter", "queen", "soft"),
+            completeMode: "one",
+            prompt: "Tap the new queen.",
+            success: "Yes. That is the promoted pawn."
+          }
+        ]
+      },
+      {
+        id: "en-passant",
+        title: "en passant",
+        label: "lesson 15: en passant",
+        macroTitle: "rare pawn take",
+        macro: [
+          "En passant is a rare pawn-only take.",
+          "It can happen right after an enemy pawn moves two squares.",
+          "Your pawn takes it as if it moved only one square."
+        ],
+        bridge: "En passant means: pawn moved too far beside you, and you can take it right away.",
+        position: "enPassant",
+        steps: [
+          {
+            title: "your pawn",
+            body: "The soft pink pawn is the one that can make this special take.",
+            targets: pieceTargets("enPassant", "pawn", "soft"),
+            completeMode: "one",
+            prompt: "Tap the pawn that can take.",
+            success: "Yes. That pawn can take en passant."
+          },
+          {
+            title: "landing square",
+            body: "The pawn lands on the square the enemy pawn passed through.",
+            targets: specialTargets("en-passant", "d6"),
+            completeMode: "one",
+            prompt: "Tap where your pawn lands.",
+            success: "Yes. It lands on d6 and the dark pawn leaves."
+          },
+          {
+            title: "right away",
+            body: "This special take only works on the very next turn.",
+            targets: specialTargets("en-passant", "d5"),
+            completeMode: "one",
+            prompt: "Tap the pawn that just moved two squares.",
+            success: "Right. The timing matters."
+          }
+        ]
+      },
+      {
+        id: "stalemate",
+        title: "stalemate",
+        label: "lesson 16: stalemate",
+        macroTitle: "draw, not win",
+        macro: [
+          "Stalemate means one player has no legal move.",
+          "Their king is not in check.",
+          "The game is a draw, not a win."
+        ],
+        bridge: "Checkmate is danger plus no escape. Stalemate is no move, but no danger.",
+        position: "stalemate",
+        steps: [
+          {
+            title: "checkmate",
+            body: "Here the king is in check and cannot get safe.",
+            position: "mate",
+            targets: pieceTargets("mate", "king", "dark"),
+            completeMode: "one",
+            prompt: "Tap the checkmated king.",
+            success: "Yes. That is checkmate."
+          },
+          {
+            title: "stalemate",
+            body: "Here the king is stuck, but the king is not in check.",
+            targets: pieceTargets("stalemate", "king", "dark"),
+            completeMode: "one",
+            prompt: "Tap the stalemated king.",
+            success: "Yes. That is stalemate."
+          },
+          {
+            title: "the result",
+            body: "Stalemate does not mean somebody won.",
+            targets: pieceTargets("stalemate", "queen", "soft"),
+            completeMode: "one",
+            prompt: "Tap the queen holding the king in place.",
+            success: "Right. The result is a draw."
           }
         ]
       }
@@ -1448,56 +1770,91 @@
         title: "find both kings",
         body: "Tap e1 and e8.",
         position: "start",
-        targets: ["e1", "e8"],
+        targets: pieceTargets("start", "king"),
         completeMode: "all"
       },
       {
         title: "name d4",
         body: "Tap the square d4.",
         position: "empty",
-        targets: ["d4"],
+        targets: squares("d4"),
         completeMode: "one"
       },
       {
         title: "knight move",
         body: "Tap one square the knight can jump to from d5.",
         position: "knight",
-        targets: ["b4", "b6", "c3", "c7", "e3", "e7", "f4", "f6"],
+        targets: legalTargets("knight", "d5", "all"),
         completeMode: "one"
       },
       {
         title: "rook take",
         body: "Tap a dark pink piece the rook can take.",
         position: "rooks",
-        targets: ["a4", "d7"],
+        targets: legalTargets("rooks", "d4", "captures"),
         completeMode: "one"
       },
       {
         title: "bishop line",
         body: "Tap a square the bishop can move to.",
         position: "bishops",
-        targets: ["c5", "e5", "c3", "e3", "a7", "g7", "g1"],
+        targets: legalTargets("bishops", "d4", "moves"),
         completeMode: "one"
       },
       {
         title: "queen line",
         body: "Tap a square the queen can move to.",
         position: "queen",
-        targets: ["d5", "d6", "d7", "a4", "e5", "f6", "g7", "c5", "b6"],
+        targets: legalTargets("queen", "d4", "all"),
         completeMode: "one"
       },
       {
         title: "king safety",
         body: "Tap the king that is in danger.",
         position: "king",
-        targets: ["e8"],
+        targets: pieceTargets("king", "king", "dark"),
         completeMode: "one"
       },
       {
         title: "checkmate idea",
         body: "Tap the piece trapping the king.",
         position: "mate",
-        targets: ["g7"],
+        targets: pieceTargets("mate", "queen", "soft"),
+        completeMode: "one"
+      },
+      {
+        title: "pawn after moving",
+        body: "Tap where the pawn on d3 can move.",
+        position: "pawnMoved",
+        targets: legalTargets("pawnMoved", "d3", "moves"),
+        completeMode: "one"
+      },
+      {
+        title: "castle king",
+        body: "Tap where the king ends up.",
+        position: "castle",
+        targets: specialTargets("castling", "g1"),
+        completeMode: "one"
+      },
+      {
+        title: "promote",
+        body: "Tap the square where the pawn promotes.",
+        position: "promotion",
+        targets: legalTargets("promotion", "g7", "moves"),
+        completeMode: "one"
+      },
+      {
+        title: "en passant",
+        body: "Tap where the soft pawn lands.",
+        position: "enPassant",
+        targets: specialTargets("en-passant", "d6"),
+        completeMode: "one"
+      },
+      {
+        title: "stalemate",
+        body: "Tap the stuck king that is not in check.",
+        position: "stalemate",
+        targets: pieceTargets("stalemate", "king", "dark"),
         completeMode: "one"
       }
     ];
@@ -1529,7 +1886,7 @@
       },
       pawns: {
         title: "pawn demo",
-        body: "Pawns walk straight forward. They take one slanted step forward.",
+        body: "Pawns walk straight forward. On its first move, a pawn may move one or two squares.",
         position: "pawns",
         moveMap: "pawn",
         highlights: ["d3", "d4", "c3", "e3"]
@@ -1553,7 +1910,7 @@
         body: "Bishops move on slanted lines. If the path is clear, the slanted line can be short or long.",
         position: "bishops",
         moveMap: "bishop",
-        highlights: ["c5", "e5", "c3", "e3", "a7", "g7", "g1"]
+        highlights: ["c5", "e5", "c3", "e3", "f2", "g1", "b6", "f6"]
       },
       queen: {
         title: "queen demo",
@@ -1582,6 +1939,34 @@
         position: "mate",
         moveMap: "queen",
         highlights: ["h8", "g8", "h7", "g7"]
+      },
+      castling: {
+        title: "castling demo",
+        body: "Just looking, nothing to get right yet: the king goes to g1, and the rook goes to f1.",
+        position: "castle",
+        moveMap: "king",
+        highlights: ["e1", "g1", "h1", "f1"]
+      },
+      promotion: {
+        title: "promotion demo",
+        body: "Just looking, nothing to get right yet: the pawn reaches g8 and becomes a queen.",
+        position: "promotion",
+        moveMap: "pawn",
+        highlights: ["g7", "g8"]
+      },
+      "en-passant": {
+        title: "en passant demo",
+        body: "Just looking, nothing to get right yet: the soft pawn lands on d6 and takes the dark pawn on d5.",
+        position: "enPassant",
+        moveMap: "pawn",
+        highlights: ["e5", "d5", "d6"]
+      },
+      stalemate: {
+        title: "stalemate demo",
+        body: "Just looking, nothing to get right yet: the dark king has no move, but it is not in check.",
+        position: "stalemate",
+        moveMap: "queen",
+        highlights: ["h8", "g8", "h7", "g7", "g6", "f7"]
       }
     };
 
@@ -1770,6 +2155,62 @@
       return isStepReady(step, found) && !currentAnswerWasShown(key);
     }
 
+    function validateCurriculumTargets() {
+      const errors = [];
+      let legalAssertions = 0;
+      let specialAssertions = 0;
+      let totalItems = 0;
+
+      function validateTargets(targets, label) {
+        totalItems += 1;
+        if (!Array.isArray(targets) || targets.length === 0) {
+          errors.push(`${label}: missing targets`);
+          return;
+        }
+        const duplicates = targets.filter((square, index) => targets.indexOf(square) !== index);
+        if (duplicates.length) errors.push(`${label}: duplicate targets ${duplicates.join(", ")}`);
+        targets.forEach(square => {
+          if (!/^[a-h][1-8]$/.test(square)) errors.push(`${label}: invalid square ${square}`);
+        });
+
+        const assert = targets._targetAssert;
+        if (!assert) return;
+        if (assert.kind === "special") {
+          specialAssertions += 1;
+          return;
+        }
+        if (assert.kind !== "legal") return;
+
+        legalAssertions += 1;
+        const legal = legalDestinations(POSITIONS[assert.positionName], assert.fromSquare);
+        const source = assert.mode === "moves"
+          ? legal.moves
+          : assert.mode === "captures"
+            ? legal.captures
+            : [...legal.moves, ...legal.captures];
+        const allowed = new Set(source.filter(square => !assert.filter || assert.filter(square)));
+        targets.forEach(square => {
+          if (!allowed.has(square)) {
+            errors.push(`${label}: ${square} is not legal for ${assert.fromSquare} in ${assert.positionName}`);
+          }
+        });
+      }
+
+      LESSONS.forEach(lesson => {
+        lesson.steps.forEach((step, index) => {
+          validateTargets(step.targets, `${lesson.id} step ${index + 1}`);
+        });
+      });
+      PRACTICE.forEach((item, index) => {
+        validateTargets(item.targets, `practice ${index + 1} ${item.title}`);
+      });
+
+      if (errors.length) {
+        throw new Error(`Curriculum target validation failed:\n${errors.join("\n")}`);
+      }
+      return { totalItems, legalAssertions, specialAssertions };
+    }
+
     function updateCompletedLesson() {
       const lesson = currentLesson();
       const allStepsReady = lesson.steps.every((step, index) => {
@@ -1802,6 +2243,10 @@
         position: lesson.position,
         highlights: []
       };
+    }
+
+    function stepPosition(lesson, step) {
+      return step.position || lesson.position;
     }
 
     function renderBoard(options) {
@@ -1969,7 +2414,7 @@
             <div>
               <p class="eyebrow">watch first</p>
               <h2 class="micro-title">demo</h2>
-              <p class="micro-body">Look at the map and highlighted squares. This is the idea before the test.</p>
+            <p class="micro-body">Just looking. Nothing to get right yet. Look at the map and highlighted squares before the test.</p>
             </div>
             <div class="feedback" role="status">${escapeHTML(state.feedback || "When this makes sense, start the test.")}</div>
             <div class="action-row">
@@ -1997,7 +2442,7 @@
           </button>
         </section>
         ${renderBoard({
-          position: lesson.position,
+          position: stepPosition(lesson, step),
           targets: step.targets,
           found,
           selected: found,
@@ -2349,6 +2794,11 @@
         render();
       }
     });
+
+    window.__GIRL_CHESS_TESTS__ = {
+      legalDestinations,
+      validateCurriculumTargets
+    };
 
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
