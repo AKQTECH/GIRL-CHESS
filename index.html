@@ -258,6 +258,7 @@
     .macro-card,
     .micro-card,
     .bridge-card,
+    .demo-card,
     .practice-card,
     .about-card {
       border: 2px solid var(--line);
@@ -302,10 +303,24 @@
       background: var(--pink-1);
     }
 
-    .bridge-card p {
+    .bridge-card p,
+    .demo-card p {
       margin: 0;
       font-size: 15px;
       line-height: 1.45;
+    }
+
+    .demo-card {
+      padding: 12px;
+      background: var(--white);
+    }
+
+    .demo-title {
+      margin: 0 0 6px;
+      font-family: "Silkscreen", monospace;
+      font-size: 14px;
+      line-height: 1;
+      text-transform: lowercase;
     }
 
     .focus-toggle {
@@ -604,9 +619,22 @@
       grid-column: 1;
     }
 
+    .is-practice-clean .rail-panel {
+      display: none;
+    }
+
+    .is-practice-clean .layout {
+      grid-template-columns: minmax(360px, 1fr) minmax(282px, 350px);
+    }
+
+    .is-practice-clean .board-panel {
+      grid-column: 1;
+    }
+
     @media (max-width: 1040px) {
       .layout,
-      .is-focus .layout {
+      .is-focus .layout,
+      .is-practice-clean .layout {
         grid-template-columns: 1fr;
       }
 
@@ -720,7 +748,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "Girl Chess v1.9";
+    const APP_VERSION = "Girl Chess v2.0";
     const STORAGE_KEY = "girl-chess-progress-v1";
     const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
     const RANKS = [8, 7, 6, 5, 4, 3, 2, 1];
@@ -1323,8 +1351,118 @@
         position: "knight",
         targets: ["b4", "b6", "c3", "c7", "e3", "e7", "f4", "f6"],
         completeMode: "one"
+      },
+      {
+        title: "rook take",
+        body: "Tap a dark pink piece the rook can take.",
+        position: "rooks",
+        targets: ["a4", "d7"],
+        completeMode: "one"
+      },
+      {
+        title: "bishop line",
+        body: "Tap a square the bishop can move to.",
+        position: "bishops",
+        targets: ["c5", "e5", "c3", "e3", "a7", "g7", "g1"],
+        completeMode: "one"
+      },
+      {
+        title: "queen line",
+        body: "Tap a square the queen can move to.",
+        position: "queen",
+        targets: ["d5", "d6", "d7", "a4", "e5", "f6", "g7", "c5", "b6"],
+        completeMode: "one"
+      },
+      {
+        title: "king safety",
+        body: "Tap the king that is in danger.",
+        position: "king",
+        targets: ["e8"],
+        completeMode: "one"
+      },
+      {
+        title: "checkmate idea",
+        body: "Tap the piece trapping the king.",
+        position: "mate",
+        targets: ["g7"],
+        completeMode: "one"
       }
     ];
+
+    const DEMOS = {
+      goal: {
+        title: "logic of the whole game",
+        body: "Chess is about safe squares. Keep your king safe. Make the other king run out of safe squares.",
+        position: "start",
+        highlights: ["e1", "e8"]
+      },
+      turns: {
+        title: "one choice, then their choice",
+        body: "Each turn changes the board. Before you move, ask: what does this piece do, and is my king still safe after?",
+        position: "start",
+        highlights: ["d2", "d3", "d4", "d7"]
+      },
+      "board-map": {
+        title: "the board is a map",
+        body: "A square name is just a location. Pieces move from one named square to another named square.",
+        position: "boardMap",
+        highlights: ["d4"]
+      },
+      "piece-guide": {
+        title: "recognize before rules",
+        body: "Every piece has a shape and a job. Learn the shape first so real boards start looking readable.",
+        position: "legend",
+        highlights: ["e1", "d1", "a1", "c1", "b1", "d2"]
+      },
+      pawns: {
+        title: "pawn demo",
+        body: "Pawns walk straight forward. They take one slanted step forward.",
+        position: "pawns",
+        highlights: ["d3", "d4", "c3", "e3"]
+      },
+      taking: {
+        title: "taking demo",
+        body: "Taking means your piece lands on the enemy piece's square. The enemy piece leaves the board.",
+        position: "rooks",
+        highlights: ["d4", "a4", "d7"]
+      },
+      rooks: {
+        title: "rook demo",
+        body: "Rooks move in straight lines: up, down, left, or right. No slanted moves.",
+        position: "rooks",
+        highlights: ["d5", "d6", "a4", "b4", "c4", "e4", "f4", "g4", "h4"]
+      },
+      bishops: {
+        title: "bishop demo",
+        body: "Bishops move on slanted lines. If the path is clear, the slanted line can be short or long.",
+        position: "bishops",
+        highlights: ["c5", "e5", "c3", "e3", "a7", "g7", "g1"]
+      },
+      queen: {
+        title: "queen demo",
+        body: "The queen combines the rook and bishop: straight lines or slanted lines, but no jumping.",
+        position: "queen",
+        highlights: ["d5", "d6", "d7", "a4", "e5", "f6", "g7", "c5", "b6"]
+      },
+      knights: {
+        title: "knight demo",
+        body: "Knights jump in an L shape. They are the odd piece, so you only need to spot the landing squares.",
+        position: "knight",
+        highlights: ["b4", "b6", "c3", "c7", "e3", "e7", "f4", "f6"]
+      },
+      king: {
+        title: "check demo",
+        body: "Check means the king is in danger. The next move must make that king safe.",
+        position: "king",
+        highlights: ["e8", "e7"]
+      },
+      checkmate: {
+        title: "checkmate demo",
+        body: "Checkmate means the king is in danger and has no safe move left. That ends the game.",
+        position: "mate",
+        highlights: ["h8", "g8", "h7", "g7"]
+      }
+    };
 
     const defaultState = {
       view: "learn",
@@ -1332,9 +1470,13 @@
       stepIndex: 0,
       completedLessons: {},
       foundByStep: {},
+      answerShownByStep: {},
       feedback: "",
       activeLegend: "king",
       focusMode: false,
+      lessonMode: "demo",
+      practiceClean: true,
+      practiceShowAnswer: false,
       practiceIndex: 0
     };
 
@@ -1381,6 +1523,10 @@
       state.foundByStep[key] = Array.from(found);
     }
 
+    function currentAnswerWasShown(key = currentStepKey()) {
+      return Boolean(state.answerShownByStep[key]);
+    }
+
     function pieceAt(positionName, square) {
       return (POSITIONS[positionName] || []).find(item => item.square === square);
     }
@@ -1405,11 +1551,15 @@
       return step.targets.every(square => found.has(square));
     }
 
+    function isStepPassed(step, found, key = currentStepKey()) {
+      return isStepReady(step, found) && !currentAnswerWasShown(key);
+    }
+
     function updateCompletedLesson() {
       const lesson = currentLesson();
       const allStepsReady = lesson.steps.every((step, index) => {
         const found = getFoundSet(`${lesson.id}:${index}`);
-        return isStepReady(step, found);
+        return isStepPassed(step, found, `${lesson.id}:${index}`);
       });
       if (allStepsReady) {
         state.completedLessons[lesson.id] = true;
@@ -1421,12 +1571,31 @@
       return `${completed}/${LESSONS.length} done`;
     }
 
+    function allLessonsPassed() {
+      return LESSONS.every(lesson => state.completedLessons[lesson.id]);
+    }
+
+    function nextIncompleteLessonIndex() {
+      const index = LESSONS.findIndex(lesson => !state.completedLessons[lesson.id]);
+      return index === -1 ? 0 : index;
+    }
+
+    function lessonDemo(lesson) {
+      return DEMOS[lesson.id] || {
+        title: "demo",
+        body: lesson.bridge,
+        position: lesson.position,
+        highlights: []
+      };
+    }
+
     function renderBoard(options) {
       const position = options.position || "start";
       const targets = new Set(options.targets || []);
       const highlights = new Set(options.highlights || []);
       const found = options.found || new Set();
       const selected = new Set(options.selected || []);
+      const showTargets = Boolean(options.showTargets);
 
       const topFiles = `<div class="files">${FILES.map(file => `<span>${file}</span>`).join("")}</div>`;
       const rankLabels = `<div class="ranks">${RANKS.map(rank => `<span>${rank}</span>`).join("")}</div>`;
@@ -1439,7 +1608,7 @@
           const classes = [
             "square",
             isDarkSquare(fileIndex, rank) ? "dark" : "light",
-            targets.has(square) ? "is-target" : "",
+            showTargets && targets.has(square) ? "is-target" : "",
             highlights.has(square) ? "is-highlight" : "",
             found.has(square) ? "is-found" : "",
             selected.has(square) ? "is-selected" : ""
@@ -1503,32 +1672,80 @@
 
     function renderLearn() {
       const lesson = currentLesson();
+      const demo = lessonDemo(lesson);
       const step = currentStep();
       const key = currentStepKey();
       const found = getFoundSet(key);
-      const stepReady = isStepReady(step, found);
-      const meter = ((state.stepIndex + (stepReady ? 1 : 0)) / lesson.steps.length) * 100;
+      const answerShown = currentAnswerWasShown(key);
+      const stepReady = isStepPassed(step, found, key);
+      const meter = state.lessonMode === "demo"
+        ? 0
+        : ((state.stepIndex + (stepReady ? 1 : 0)) / lesson.steps.length) * 100;
 
       stageLabel.textContent = lesson.label;
+      if (state.lessonMode === "demo") {
+        stage.innerHTML = `
+          <section class="macro-card">
+            <div>
+              <p class="eyebrow">big picture</p>
+              <h2 class="macro-title">${escapeHTML(lesson.macroTitle)}</h2>
+              ${lesson.macro.map(text => `<p class="plain-text">${escapeHTML(text)}</p>`).join("")}
+            </div>
+            <button class="focus-toggle" type="button" aria-pressed="${state.focusMode}" data-action="focus">
+              ${state.focusMode ? "show all" : "focus"}
+            </button>
+          </section>
+          <section class="bridge-card">
+            <p><strong>what this means:</strong> ${escapeHTML(lesson.bridge)}</p>
+          </section>
+          <section class="demo-card">
+            <h2 class="demo-title">${escapeHTML(demo.title)}</h2>
+            <p>${escapeHTML(demo.body)}</p>
+          </section>
+          ${renderBoard({
+            position: demo.position,
+            highlights: demo.highlights
+          })}
+        `;
+
+        coach.innerHTML = `
+          <section class="micro-card">
+            <div>
+              <p class="eyebrow">watch first</p>
+              <h2 class="micro-title">demo</h2>
+              <p class="micro-body">Look at the highlighted squares. This is the idea before the test.</p>
+            </div>
+            <div class="feedback" role="status">${escapeHTML(state.feedback || "When this makes sense, start the test.")}</div>
+            <div class="action-row">
+              <button class="small-button" type="button" data-action="focus">${state.focusMode ? "show all" : "focus"}</button>
+              <button class="primary-button" type="button" data-action="start-test">start test</button>
+            </div>
+          </section>
+          <section class="micro-card">
+            <p class="eyebrow">piece guide</p>
+            ${renderLegendCards(false)}
+          </section>
+        `;
+        return;
+      }
+
       stage.innerHTML = `
         <section class="macro-card">
           <div>
-            <p class="eyebrow">big picture</p>
+            <p class="eyebrow">test</p>
             <h2 class="macro-title">${escapeHTML(lesson.macroTitle)}</h2>
-            ${lesson.macro.map(text => `<p class="plain-text">${escapeHTML(text)}</p>`).join("")}
+            <p class="plain-text">Now answer without the board giving it away.</p>
           </div>
           <button class="focus-toggle" type="button" aria-pressed="${state.focusMode}" data-action="focus">
             ${state.focusMode ? "show all" : "focus"}
           </button>
         </section>
-        <section class="bridge-card">
-          <p><strong>what this means:</strong> ${escapeHTML(lesson.bridge)}</p>
-        </section>
         ${renderBoard({
           position: lesson.position,
           targets: step.targets,
           found,
-          selected: found
+          selected: found,
+          showTargets: answerShown
         })}
       `;
 
@@ -1546,9 +1763,10 @@
           <div class="feedback" role="status">${escapeHTML(state.feedback || step.prompt || "Tap the board when the step asks you to.")}</div>
           <div class="action-row three">
             <button class="small-button" type="button" data-action="back" ${state.stepIndex === 0 ? "disabled" : ""}>back</button>
-            <button class="small-button" type="button" data-action="answer">show</button>
+            <button class="small-button" type="button" data-action="answer">show answer</button>
             <button class="primary-button" type="button" data-action="next" ${stepReady ? "" : "disabled"}>${state.stepIndex === lesson.steps.length - 1 ? "finish" : "next"}</button>
           </div>
+          <button class="small-button" type="button" data-action="retry-step" ${found.size || answerShown ? "" : "disabled"}>reset question</button>
         </section>
         <section class="micro-card">
           <p class="eyebrow">piece guide</p>
@@ -1590,44 +1808,65 @@
     }
 
     function renderPractice() {
+      if (!allLessonsPassed()) {
+        const nextIndex = nextIncompleteLessonIndex();
+        const nextLesson = LESSONS[nextIndex];
+        stageLabel.textContent = "practice locked";
+        stage.innerHTML = `
+          <section class="about-card">
+            <p class="eyebrow">locked</p>
+            <h2 class="view-title">practice unlocks after lessons</h2>
+            <p class="plain-text">Finish each lesson demo and pass its test. Then the practice rounds open.</p>
+            <p class="plain-text">Next lesson to pass: ${escapeHTML(nextLesson.label)}.</p>
+          </section>
+        `;
+        coach.innerHTML = `
+          <section class="micro-card">
+            <p class="eyebrow">next step</p>
+            <h2 class="micro-title">${escapeHTML(nextLesson.title)}</h2>
+            <p class="micro-body">Go back to lessons and pass this test first.</p>
+            <button class="primary-button" type="button" data-action="go-needed-lesson">go to lesson</button>
+          </section>
+        `;
+        return;
+      }
+
       const item = PRACTICE[state.practiceIndex] || PRACTICE[0];
       const key = `practice:${state.practiceIndex}`;
       const found = getFoundSet(key);
       const ready = isStepReady(item, found);
+      const showTargets = state.practiceShowAnswer;
 
       stageLabel.textContent = "practice";
       stage.innerHTML = `
-        <section class="macro-card">
-          <div>
-            <p class="eyebrow">big picture</p>
-            <h2 class="macro-title">practice slowly</h2>
-            <p class="plain-text">One question at a time. No timer. No penalty.</p>
-            <p class="plain-text">Read the question. Look at the board. Tap one answer.</p>
-          </div>
-        </section>
         ${renderBoard({
           position: item.position,
           targets: item.targets,
           found,
-          selected: found
+          selected: found,
+          showTargets
         })}
       `;
 
       coach.innerHTML = `
         <section class="micro-card">
-          <p class="eyebrow">tiny practice</p>
+          <p class="eyebrow">practice ${state.practiceIndex + 1}/${PRACTICE.length}</p>
           <h2 class="micro-title">${escapeHTML(item.title)}</h2>
           <p class="micro-body">${escapeHTML(item.body)}</p>
           <div class="feedback" role="status">${escapeHTML(state.feedback || "Tap the answer on the board.")}</div>
-          <div class="action-row">
+          <div class="action-row three">
             <button class="small-button" type="button" data-action="practice-reset">reset</button>
+            <button class="small-button" type="button" data-action="practice-answer">${state.practiceShowAnswer ? "hide answer" : "show answer"}</button>
             <button class="primary-button" type="button" data-action="practice-next" ${ready ? "" : "disabled"}>next</button>
           </div>
+          <button class="small-button" type="button" data-action="toggle-practice-clean">${state.practiceClean ? "show guide" : "hide guide"}</button>
         </section>
-        <section class="micro-card">
-          <p class="eyebrow">piece guide</p>
-          ${renderLegendCards(false)}
-        </section>
+        ${state.practiceClean ? "" : `
+          <section class="micro-card">
+            <p class="eyebrow">piece guide</p>
+            ${renderLegendCards(false)}
+          </section>
+        `}
       `;
     }
 
@@ -1653,6 +1892,7 @@
 
     function render() {
       app.classList.toggle("is-focus", state.focusMode && state.view === "learn");
+      app.classList.toggle("is-practice-clean", state.practiceClean && state.view === "practice" && allLessonsPassed());
       progressPill.textContent = progressText();
       document.querySelectorAll(".tab-button").forEach(button => {
         button.setAttribute("aria-pressed", String(button.dataset.view === state.view));
@@ -1678,10 +1918,14 @@
         if (step.targets.includes(square)) {
           found.add(square);
           setFoundSet(found);
-          state.feedback = isStepReady(step, found) ? step.success : "Good. Find the next one.";
+          if (currentAnswerWasShown()) {
+            state.feedback = "That is the answer. Reset this question and do it without showing the answer to pass.";
+          } else {
+            state.feedback = isStepReady(step, found) ? step.success : "Good. Find the next one.";
+          }
           updateCompletedLesson();
         } else {
-          state.feedback = "Not that square yet. Use show if you want a hint.";
+          state.feedback = "Not that square. Try again.";
         }
         render();
         return;
@@ -1704,17 +1948,24 @@
 
     function showAnswer() {
       const step = currentStep();
-      const found = new Set(step.targets || []);
-      setFoundSet(found);
+      state.answerShownByStep[currentStepKey()] = true;
       state.feedback = step.targets && step.targets.length
-        ? `Answer shown: ${step.targets.join(", ")}.`
+        ? `Answer shown: ${step.targets.join(", ")}. Reset this question to pass it.`
         : "No board tap is needed here.";
-      updateCompletedLesson();
       render();
     }
 
     function goNext() {
       const lesson = currentLesson();
+      const step = currentStep();
+      const found = getFoundSet();
+      if (!isStepPassed(step, found)) {
+        state.feedback = currentAnswerWasShown()
+          ? "Reset this question and answer without showing it to pass."
+          : "Answer this question first.";
+        render();
+        return;
+      }
       if (state.stepIndex < lesson.steps.length - 1) {
         state.stepIndex += 1;
         state.feedback = "";
@@ -1723,6 +1974,7 @@
         if (state.lessonIndex < LESSONS.length - 1) {
           state.lessonIndex += 1;
           state.stepIndex = 0;
+          state.lessonMode = "demo";
           state.feedback = "Next lesson loaded.";
         } else {
           state.feedback = "Lesson path complete.";
@@ -1751,6 +2003,7 @@
         state.view = "learn";
         state.lessonIndex = Number(lessonButton.dataset.lesson);
         state.stepIndex = 0;
+        state.lessonMode = "demo";
         state.feedback = "";
         render();
         return;
@@ -1759,6 +2012,8 @@
       const viewButton = event.target.closest("[data-view]");
       if (viewButton) {
         state.view = viewButton.dataset.view;
+        if (state.view === "learn") state.lessonMode = state.lessonMode || "demo";
+        if (state.view === "practice") state.practiceShowAnswer = false;
         state.feedback = "";
         render();
         return;
@@ -1779,16 +2034,47 @@
         state.focusMode = !state.focusMode;
         render();
       }
+      if (action === "start-test") {
+        state.lessonMode = "quiz";
+        state.feedback = "";
+        render();
+      }
       if (action === "back") goBack();
       if (action === "answer") showAnswer();
       if (action === "next") goNext();
+      if (action === "retry-step") {
+        const key = currentStepKey();
+        state.foundByStep[key] = [];
+        state.answerShownByStep[key] = false;
+        state.feedback = "";
+        render();
+      }
       if (action === "practice-reset") {
         state.foundByStep[`practice:${state.practiceIndex}`] = [];
+        state.practiceShowAnswer = false;
         state.feedback = "";
+        render();
+      }
+      if (action === "practice-answer") {
+        state.practiceShowAnswer = !state.practiceShowAnswer;
+        state.feedback = state.practiceShowAnswer ? "Answer is showing." : "";
         render();
       }
       if (action === "practice-next") {
         state.practiceIndex = (state.practiceIndex + 1) % PRACTICE.length;
+        state.practiceShowAnswer = false;
+        state.feedback = "";
+        render();
+      }
+      if (action === "toggle-practice-clean") {
+        state.practiceClean = !state.practiceClean;
+        render();
+      }
+      if (action === "go-needed-lesson") {
+        state.view = "learn";
+        state.lessonIndex = nextIncompleteLessonIndex();
+        state.stepIndex = 0;
+        state.lessonMode = "demo";
         state.feedback = "";
         render();
       }
