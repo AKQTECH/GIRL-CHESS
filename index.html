@@ -820,6 +820,41 @@
       gap: 8px;
     }
 
+    .about-footer {
+      border: 2px solid var(--line-soft);
+      background: rgba(255, 250, 253, 0.74);
+      padding: 8px 10px;
+      font-size: 13px;
+    }
+
+    .about-footer details {
+      display: grid;
+      gap: 8px;
+    }
+
+    .about-footer summary {
+      min-height: 34px;
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      padding-right: 10px;
+      font-family: "Silkscreen", monospace;
+      font-size: 10px;
+      text-transform: lowercase;
+      cursor: pointer;
+    }
+
+    .about-footer p {
+      margin: 6px 0;
+      line-height: 1.35;
+    }
+
+    .about-footer .small-button {
+      min-height: 38px;
+      width: min(220px, 100%);
+      font-size: 10px;
+    }
+
     .play-controls,
     .promotion-row {
       display: grid;
@@ -978,15 +1013,22 @@
         <button class="tab-button" type="button" data-view="legend">legend</button>
         <button class="tab-button" type="button" data-view="practice">practice</button>
         <button class="tab-button" type="button" data-view="play">play</button>
-        <button class="tab-button" type="button" data-view="about">about</button>
       </nav>
     </header>
 
     <main class="layout" id="layout"></main>
+    <footer class="about-footer">
+      <details>
+        <summary>about</summary>
+        <p class="version">Girl Chess v3.2<br>Built for April Korto Quioh</p>
+        <p>Progress saves on this device.</p>
+        <button class="small-button" type="button" data-action="reset-progress">reset progress</button>
+      </details>
+    </footer>
   </div>
 
   <script>
-    const APP_VERSION = "Girl Chess v3.0";
+    const APP_VERSION = "Girl Chess v3.2";
     const STORAGE_KEY = "girl-chess-progress-v1";
     const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
     const RANKS = [8, 7, 6, 5, 4, 3, 2, 1];
@@ -1104,6 +1146,42 @@
         compare: "stalemate is a locked door, not a knockout",
         alternate: "no legal move plus no check means draw",
         wrong: "stalemate is not checkmate"
+      },
+      blocked: {
+        rule: "most pieces need a clear road",
+        compare: "most pieces are like cars: they cannot drive through traffic",
+        alternate: "a piece in front is a closed door, unless the moving piece is a knight",
+        wrong: "pieces do not move through their own team"
+      },
+      pin: {
+        rule: "a pinned piece is stuck because it is guarding the king",
+        compare: "a pinned piece is like a doorstop: if it moves, danger gets through",
+        alternate: "the piece is allowed to move only if the king stays safe after",
+        wrong: "you cannot expose your own king"
+      },
+      "check-escape": {
+        rule: "check must be answered right away",
+        compare: "check is a fire alarm: first make the king safe",
+        alternate: "you can move the king, block the road, or take the piece causing danger",
+        wrong: "you cannot ignore check"
+      },
+      "queenside-castle": {
+        rule: "queenside castling tucks the king behind the left rook",
+        compare: "queenside castling is the longer safety slide toward the left rook",
+        alternate: "the king still moves two squares, but this time toward the queen side",
+        wrong: "queenside castling still needs a clear safe path"
+      },
+      "promotion-choice": {
+        rule: "promotion can choose queen, rook, bishop, or knight",
+        compare: "promotion is a pawn choosing a new outfit at the finish line",
+        alternate: "queen is common, but the pawn has four legal choices",
+        wrong: "a pawn cannot stay a pawn on the last row"
+      },
+      "dead-position": {
+        rule: "a dead position is a draw because checkmate is impossible",
+        compare: "dead position means nobody has enough tools left to build a trap",
+        alternate: "if no legal future can trap either king, the game is done",
+        wrong: "dead position is not the same as stalemate"
       }
     };
 
@@ -1136,10 +1214,15 @@
       mate: [p("h8", "king", "dark"), p("g7", "queen", "soft"), p("h6", "king", "soft")],
       pawnMoved: [p("d3", "pawn", "soft"), p("e8", "king", "dark"), p("e1", "king", "soft")],
       castle: [p("e1", "king", "soft"), p("h1", "rook", "soft"), p("e8", "king", "dark")],
+      castleQueen: [p("e1", "king", "soft"), p("a1", "rook", "soft"), p("e8", "king", "dark")],
       promotion: [p("g7", "pawn", "soft"), p("e1", "king", "soft"), p("e8", "king", "dark")],
       promotionAfter: [p("g8", "queen", "soft"), p("e1", "king", "soft"), p("e8", "king", "dark")],
+      promotionChoices: [p("a8", "queen", "soft"), p("c8", "rook", "soft"), p("e8", "bishop", "soft"), p("g8", "knight", "soft"), p("e1", "king", "soft"), p("h8", "king", "dark")],
       enPassant: [p("e5", "pawn", "soft"), p("d5", "pawn", "dark"), p("e1", "king", "soft"), p("e8", "king", "dark")],
-      stalemate: [p("h8", "king", "dark"), p("g6", "queen", "soft"), p("f7", "king", "soft")]
+      stalemate: [p("h8", "king", "dark"), p("g6", "queen", "soft"), p("f7", "king", "soft")],
+      pin: [p("e1", "king", "soft"), p("e2", "rook", "soft"), p("e8", "rook", "dark"), p("a8", "king", "dark")],
+      checkOptions: [p("e1", "king", "soft"), p("e8", "rook", "dark"), p("a8", "king", "dark"), p("f1", "bishop", "soft"), p("h5", "queen", "soft")],
+      deadPosition: [p("e1", "king", "soft"), p("e8", "king", "dark")]
     };
 
     function fileNumber(file) {
@@ -1518,7 +1601,7 @@
             : "Checkmate. You trapped the dark pink king.";
         } else {
           next.result = "draw";
-          next.status = "Stalemate. Nobody wins because the king is stuck but not in danger.";
+          next.status = "Stalemate. This is a draw: the king is not in danger, but has no legal move. Checkmate is different: the king is in danger and has no legal move. To make checkmate instead, the last move would need to attack the king while covering every escape square.";
         }
         return next;
       }
@@ -1585,14 +1668,95 @@
       return `${name} from ${move.from} to ${move.to}`;
     }
 
+    function firstBlockerBetween(position, fromSquare, toSquare) {
+      const from = squareParts(fromSquare);
+      const to = squareParts(toSquare);
+      const fileDelta = to.fileIndex - from.fileIndex;
+      const rankDelta = to.rank - from.rank;
+      const isStraight = fileDelta === 0 || rankDelta === 0;
+      const isSlanted = Math.abs(fileDelta) === Math.abs(rankDelta);
+      if (!isStraight && !isSlanted) return null;
+      const fileStep = Math.sign(fileDelta);
+      const rankStep = Math.sign(rankDelta);
+      let file = from.fileIndex + fileStep;
+      let rank = from.rank + rankStep;
+      let square = squareName(file, rank);
+      while (square && square !== toSquare) {
+        const blocker = pieceAtSquare(position, square);
+        if (blocker) return blocker;
+        file += fileStep;
+        rank += rankStep;
+        square = squareName(file, rank);
+      }
+      return null;
+    }
+
     function explainIllegalMove(play, fromSquare, toSquare) {
       const piece = pieceAtSquare(play.position, fromSquare);
       if (!piece) return "Pick a soft pink piece first.";
+      const targetPiece = pieceAtSquare(play.position, toSquare);
+      const name = PIECE_BY_ID[piece.piece].name;
+      if (targetPiece && targetPiece.side === piece.side) {
+        return `That square already has your ${PIECE_BY_ID[targetPiece.piece].name}. You cannot land on your own piece.`;
+      }
       const pseudo = pseudoGameMoves(play, fromSquare).some(move => move.to === toSquare);
-      if (pseudo) return "You can't move there because your king would be in danger.";
+      if (pseudo) {
+        return isKingInCheck(play.position, piece.side)
+          ? "You are in check, so this move is not enough. Your move has to make the king safe first."
+          : "That move would leave your king in danger. A legal move can never expose your own king.";
+      }
+      const from = squareParts(fromSquare);
+      const to = squareParts(toSquare);
+      const fileDelta = to.fileIndex - from.fileIndex;
+      const rankDelta = to.rank - from.rank;
+      const absFile = Math.abs(fileDelta);
+      const absRank = Math.abs(rankDelta);
+
+      if (piece.piece === "pawn") {
+        const direction = piece.side === "soft" ? 1 : -1;
+        const startRank = piece.side === "soft" ? 2 : 7;
+        if (fileDelta === 0 && targetPiece && targetPiece.side !== piece.side) {
+          return "Pawns cannot take straight ahead. They walk straight only when the square is empty.";
+        }
+        if (fileDelta === 0 && Math.abs(rankDelta) === 2 && from.rank !== startRank) {
+          return "That pawn already left its starting row. The two-square move only works the first time that pawn moves.";
+        }
+        if (fileDelta === 0 && rankDelta !== direction && rankDelta !== direction * 2) {
+          return "Pawns only walk forward. Soft pink pawns move toward the top of the board.";
+        }
+        if (absFile === 1 && rankDelta === direction && !targetPiece) {
+          return "Pawns only move slanted when they are taking an enemy piece. That slanted square is empty.";
+        }
+        if (absFile === 1) {
+          return "Pawns take one slanted step forward, not backward or sideways.";
+        }
+        return "Pawns have two chores: walk straight forward, or take one slanted step forward.";
+      }
+      if (piece.piece === "rook") {
+        if (fileDelta !== 0 && rankDelta !== 0) return "Rooks use straight roads only. That square is on a slant.";
+        const blocker = firstBlockerBetween(play.position, fromSquare, toSquare);
+        if (blocker) return `The rook's road is blocked by the ${PIECE_BY_ID[blocker.piece].name} on ${blocker.square}. Rooks cannot jump.`;
+      }
+      if (piece.piece === "bishop") {
+        if (absFile !== absRank) return "Bishops use slanted roads only. That square is not on the bishop's slanted road.";
+        const blocker = firstBlockerBetween(play.position, fromSquare, toSquare);
+        if (blocker) return `The bishop's slanted road is blocked by the ${PIECE_BY_ID[blocker.piece].name} on ${blocker.square}. Bishops cannot jump.`;
+      }
+      if (piece.piece === "queen") {
+        const queenRoad = fileDelta === 0 || rankDelta === 0 || absFile === absRank;
+        if (!queenRoad) return "The queen needs a straight road or a slanted road. That square is neither one.";
+        const blocker = firstBlockerBetween(play.position, fromSquare, toSquare);
+        if (blocker) return `The queen's road is blocked by the ${PIECE_BY_ID[blocker.piece].name} on ${blocker.square}. Queens cannot jump.`;
+      }
+      if (piece.piece === "knight") {
+        return "Knights hop in an L: two squares one way, then one square to the side. That landing square is not the L.";
+      }
+      if (piece.piece === "king") {
+        if (Math.max(absFile, absRank) > 1) return "The king gets one small step. That square is too far away.";
+        return "The king cannot step onto a square controlled by the other team.";
+      }
       const teaching = TEACHING[piece.piece];
-      if (piece.piece === "pawn") return "Pawns walk straight forward and take on a slant.";
-      return teaching ? teaching.wrong : "That piece cannot move there.";
+      return teaching ? teaching.wrong : `${name} cannot move there.`;
     }
 
     function suggestCoachMove(play) {
@@ -1613,7 +1777,7 @@
       const suggestion = suggestCoachMove(play);
       if (!suggestion) {
         play.coachMessage = "No hint right now. The game may already be over.";
-        return play;
+        return [];
       }
       play.hintLevel = Math.min(3, (play.hintLevel || 0) + 1);
       play.hintSquares = [];
@@ -1626,10 +1790,10 @@
       } else if (play.hintLevel === 2) {
         play.coachMessage = `Look at the ${PIECE_BY_ID[suggestion.piece].name} on ${suggestion.from}.`;
       } else {
-        play.coachMessage = `Try ${describeMove(suggestion)}.`;
-        play.hintSquares = [suggestion.from, suggestion.to];
+        play.coachMessage = "Watch the suggestion flash.";
+        return [suggestion.from, suggestion.to];
       }
-      return play;
+      return [];
     }
 
     function chooseBotMove(play) {
@@ -2375,6 +2539,248 @@
             success: "Right. The result is a draw."
           }
         ]
+      },
+      {
+        id: "blocked-pieces",
+        title: "blocked pieces",
+        label: "lesson 17: blocked pieces",
+        macroTitle: "clear roads",
+        macro: [
+          "Most pieces need a clear road.",
+          "A piece cannot move through another piece.",
+          "The knight is the exception because it jumps."
+        ],
+        bridge: "What if a piece is in the way? For most pieces, the road is closed.",
+        position: "start",
+        steps: [
+          {
+            title: "front row",
+            body: "At the start, pawns make a little fence in front of the bigger pieces.",
+            targets: pieceTargets("start", "pawn", "soft"),
+            completeMode: "one",
+            prompt: "Tap one soft pink pawn in the front row.",
+            success: "Yes. That pawn is part of the front row."
+          },
+          {
+            title: "stuck behind",
+            body: "The bishop needs a slanted road, but the front row is blocking it.",
+            targets: pieceTargets("start", "bishop", "soft"),
+            completeMode: "one",
+            prompt: "Tap a soft pink bishop.",
+            success: "Right. This bishop needs the road opened."
+          },
+          {
+            title: "the jumper",
+            body: "The knight can jump even when the front row is still full.",
+            targets: pieceTargets("start", "knight", "soft"),
+            completeMode: "one",
+            prompt: "Tap a soft pink knight.",
+            success: "Yes. The knight can jump over traffic."
+          }
+        ]
+      },
+      {
+        id: "pin",
+        title: "pinned pieces",
+        label: "lesson 18: pinned pieces",
+        macroTitle: "stuck guarding",
+        macro: [
+          "Sometimes a piece looks movable, but moving it would expose your king.",
+          "That piece is pinned.",
+          "Pinned means stuck unless the king stays safe."
+        ],
+        bridge: "What if moving a piece opens danger behind it? Then it is not a safe move.",
+        position: "pin",
+        steps: [
+          {
+            title: "the king",
+            body: "The soft pink king is behind the soft pink rook.",
+            targets: pieceTargets("pin", "king", "soft"),
+            completeMode: "one",
+            prompt: "Tap the soft pink king.",
+            success: "Yes. This king is what must stay safe."
+          },
+          {
+            title: "the pinned piece",
+            body: "The soft pink rook is like a doorstop. If it leaves, danger gets through.",
+            targets: specialTargets("pin", "e2"),
+            completeMode: "one",
+            prompt: "Tap the soft pink rook in front of the king.",
+            success: "Yes. That rook is pinned."
+          },
+          {
+            title: "the danger",
+            body: "The dark pink rook is aiming down the same straight road.",
+            targets: specialTargets("pin", "e8"),
+            completeMode: "one",
+            prompt: "Tap the dark pink rook causing the pin.",
+            success: "Right. This is the piece creating the danger."
+          }
+        ]
+      },
+      {
+        id: "answer-check",
+        title: "answer check",
+        label: "lesson 19: answer check",
+        macroTitle: "fix danger first",
+        macro: [
+          "Check means your king is in danger now.",
+          "Your next move must fix that danger.",
+          "You can move the king, block the road, or take the attacker."
+        ],
+        bridge: "What if your king is in check? Treat it like an alarm: make the king safe first.",
+        position: "checkOptions",
+        steps: [
+          {
+            title: "see check",
+            body: "The dark rook is looking straight at your king.",
+            targets: specialTargets("check-escape", "e1"),
+            completeMode: "one",
+            prompt: "Tap the king in check.",
+            success: "Yes. This king is in danger."
+          },
+          {
+            title: "move away",
+            body: "One answer is to move the king to a safe square.",
+            targets: specialTargets("check-escape", "d1"),
+            completeMode: "one",
+            prompt: "Tap a safe square the king could move to.",
+            success: "Yes. Moving the king can answer check."
+          },
+          {
+            title: "block the road",
+            body: "Another answer is to put a piece between the attacker and the king.",
+            targets: specialTargets("check-escape", "e2"),
+            completeMode: "one",
+            prompt: "Tap the square that would block the straight road.",
+            success: "Yes. A piece on e2 would block the danger."
+          },
+          {
+            title: "take attacker",
+            body: "A third answer is to take the piece causing check.",
+            targets: specialTargets("check-escape", "e8"),
+            completeMode: "one",
+            prompt: "Tap the attacking rook.",
+            success: "Right. Taking the attacker can answer check."
+          }
+        ]
+      },
+      {
+        id: "queenside-castle",
+        title: "queen side castle",
+        label: "lesson 20: queen side castle",
+        macroTitle: "the other castle",
+        macro: [
+          "Castling can happen toward either rook.",
+          "The right-side castle is shorter.",
+          "The left-side castle is called queenside castling."
+        ],
+        bridge: "Queen side castle still means: king moves two squares, rook tucks beside it.",
+        position: "castleQueen",
+        steps: [
+          {
+            title: "king lands",
+            body: "On the queen side, the king lands on c1.",
+            targets: specialTargets("queenside-castle", "c1"),
+            completeMode: "one",
+            prompt: "Tap where the king ends up.",
+            success: "Yes. The king lands on c1."
+          },
+          {
+            title: "rook lands",
+            body: "The rook lands right beside the king on d1.",
+            targets: specialTargets("queenside-castle", "d1"),
+            completeMode: "one",
+            prompt: "Tap where the rook ends up.",
+            success: "Yes. The rook lands on d1."
+          },
+          {
+            title: "same rule",
+            body: "The path still must be clear, and the king must stay safe the whole way.",
+            targets: specialTargets("queenside-castle", "e1", "a1"),
+            completeMode: "all",
+            prompt: "Tap the king and left rook.",
+            success: "Right. These are the two pieces in queen side castling."
+          }
+        ]
+      },
+      {
+        id: "promotion-choices",
+        title: "promotion choices",
+        label: "lesson 21: promotion choices",
+        macroTitle: "four upgrades",
+        macro: [
+          "A pawn cannot stay a pawn on the last row.",
+          "It must become a queen, rook, bishop, or knight.",
+          "Queen is common, but the other choices are legal."
+        ],
+        bridge: "What if queen is not the best outfit? Promotion still gives four legal choices.",
+        position: "promotionChoices",
+        steps: [
+          {
+            title: "usual choice",
+            body: "Most of the time, choose a queen because she is strongest.",
+            targets: specialTargets("promotion-choice", "a8"),
+            completeMode: "one",
+            prompt: "Tap the queen option.",
+            success: "Yes. Queen is the common upgrade."
+          },
+          {
+            title: "other choices",
+            body: "A pawn can also become a rook, bishop, or knight.",
+            targets: specialTargets("promotion-choice", "c8", "e8", "g8"),
+            completeMode: "all",
+            prompt: "Tap the rook, bishop, and knight options.",
+            success: "Right. These are legal too."
+          },
+          {
+            title: "rare choice",
+            body: "Sometimes a knight is chosen because it jumps in a useful way.",
+            targets: specialTargets("promotion-choice", "g8"),
+            completeMode: "one",
+            prompt: "Tap the knight option.",
+            success: "Yes. This rare choice is called underpromotion."
+          }
+        ]
+      },
+      {
+        id: "dead-position",
+        title: "dead position",
+        label: "lesson 22: dead position",
+        macroTitle: "not enough left",
+        macro: [
+          "Sometimes nobody can ever trap a king.",
+          "If checkmate is impossible for both sides, the game is a draw.",
+          "That is called a dead position."
+        ],
+        bridge: "What if only kings are left? Nobody has tools to build a trap.",
+        position: "deadPosition",
+        steps: [
+          {
+            title: "only kings",
+            body: "Only the two kings are left on this board.",
+            targets: pieceTargets("deadPosition", "king"),
+            completeMode: "all",
+            prompt: "Tap both kings.",
+            success: "Yes. Only kings are left."
+          },
+          {
+            title: "no trap",
+            body: "A king alone cannot trap the other king.",
+            targets: pieceTargets("deadPosition", "king", "soft"),
+            completeMode: "one",
+            prompt: "Tap your king.",
+            success: "Right. Your king cannot checkmate alone."
+          },
+          {
+            title: "draw",
+            body: "Because checkmate is impossible, the game is a draw.",
+            targets: pieceTargets("deadPosition", "king", "dark"),
+            completeMode: "one",
+            prompt: "Tap the other king.",
+            success: "Yes. This game is a draw."
+          }
+        ]
       }
     ];
 
@@ -2469,6 +2875,48 @@
         position: "stalemate",
         targets: pieceTargets("stalemate", "king", "dark"),
         completeMode: "one"
+      },
+      {
+        title: "blocked road",
+        body: "Tap a piece that can jump at the start.",
+        position: "start",
+        targets: pieceTargets("start", "knight", "soft"),
+        completeMode: "one"
+      },
+      {
+        title: "pinned piece",
+        body: "Tap the piece that is stuck guarding the king.",
+        position: "pin",
+        targets: specialTargets("pin", "e2"),
+        completeMode: "one"
+      },
+      {
+        title: "answer check",
+        body: "Tap the square that could block the check.",
+        position: "checkOptions",
+        targets: specialTargets("check-escape", "e2"),
+        completeMode: "one"
+      },
+      {
+        title: "queen side castle",
+        body: "Tap where the king lands on the queen side.",
+        position: "castleQueen",
+        targets: specialTargets("queenside-castle", "c1"),
+        completeMode: "one"
+      },
+      {
+        title: "promotion choice",
+        body: "Tap the knight promotion option.",
+        position: "promotionChoices",
+        targets: specialTargets("promotion-choice", "g8"),
+        completeMode: "one"
+      },
+      {
+        title: "dead position",
+        body: "Tap both kings when only kings are left.",
+        position: "deadPosition",
+        targets: pieceTargets("deadPosition", "king"),
+        completeMode: "all"
       }
     ];
 
@@ -2580,6 +3028,48 @@
         position: "stalemate",
         moveMap: "queen",
         highlights: ["h8", "g8", "h7", "g7", "g6", "f7"]
+      },
+      "blocked-pieces": {
+        title: "blocked road demo",
+        body: "Most pieces need open roads. Knights are the exception because they jump.",
+        position: "start",
+        moveMap: "knight",
+        highlights: ["b1", "g1", "b2", "g2"]
+      },
+      pin: {
+        title: "pin demo",
+        body: "The soft rook is stuck in front of the king. If it leaves the line, the dark rook attacks the king.",
+        position: "pin",
+        moveMap: "rook",
+        highlights: ["e1", "e2", "e8"]
+      },
+      "answer-check": {
+        title: "answer check demo",
+        body: "When the king is in check, answer the danger first: move, block, or take the attacker.",
+        position: "checkOptions",
+        moveMap: "rook",
+        highlights: ["e1", "d1", "e2", "e8"]
+      },
+      "queenside-castle": {
+        title: "queen side castle demo",
+        body: "Queen side castle sends the king to c1 and the rook to d1.",
+        position: "castleQueen",
+        moveMap: "king",
+        highlights: ["e1", "c1", "a1", "d1"]
+      },
+      "promotion-choices": {
+        title: "promotion choice demo",
+        body: "A promoted pawn can become a queen, rook, bishop, or knight. Queen is common. Knight is rare but legal.",
+        position: "promotionChoices",
+        moveMap: "pawn",
+        highlights: ["a8", "c8", "e8", "g8"]
+      },
+      "dead-position": {
+        title: "dead position demo",
+        body: "If only kings are left, nobody can build checkmate. The game is a draw.",
+        position: "deadPosition",
+        moveMap: "king",
+        highlights: ["e1", "e8"]
       }
     };
 
@@ -2656,6 +3146,7 @@
       feedback: "",
       activeLegend: "king",
       legendPhase: 0,
+      legendAdvanced: false,
       focusMode: false,
       lessonMode: "demo",
       practiceClean: true,
@@ -2667,6 +3158,7 @@
     let state = loadState();
     let feedbackTimer = null;
     let botTimer = null;
+    let hintFlashTimer = null;
 
     const app = document.getElementById("app");
     const layout = document.getElementById("layout");
@@ -2681,6 +3173,7 @@
         const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
         const next = { ...defaultState, ...saved };
         if (next.view === "learn") next.view = "lessons";
+        if (next.view === "about") next.view = "lessons";
         next.foundByStep = {};
         next.answerShownByStep = {};
         next.revealedByStep = {};
@@ -2705,6 +3198,19 @@
         legendPhase,
         ...persisted
       } = state;
+      if (persisted.play) {
+        persisted.play = {
+          ...persisted.play,
+          selected: null,
+          legal: [],
+          hintSquares: [],
+          hintLevel: 0,
+          pendingPromotion: null,
+          coachMessage: "",
+          message: "",
+          busy: false
+        };
+      }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
     }
 
@@ -2770,6 +3276,33 @@
         window.clearTimeout(botTimer);
         botTimer = null;
       }
+    }
+
+    function clearHintFlash() {
+      if (hintFlashTimer) {
+        window.clearTimeout(hintFlashTimer);
+        hintFlashTimer = null;
+      }
+      if (state.play && state.play.hintSquares && state.play.hintSquares.length) {
+        state.play.hintSquares = [];
+      }
+    }
+
+    function startHintFlash(squares, options = {}) {
+      clearHintFlash();
+      const play = ensurePlayState();
+      play.hintSquares = squares;
+      const flashMessage = options.flashMessage || play.coachMessage;
+      render();
+      hintFlashTimer = window.setTimeout(() => {
+        hintFlashTimer = null;
+        const current = ensurePlayState();
+        current.hintSquares = [];
+        if (options.clearCoachMessage && current.coachMessage === flashMessage) {
+          current.coachMessage = options.restoreCoachMessage || "";
+        }
+        render();
+      }, 950);
     }
 
     function flashFeedback(message, restoreMessage) {
@@ -3266,10 +3799,23 @@
       return `<div class="mini-board" aria-hidden="true">${cells.join("")}</div><p class="plain-text">${escapeHTML(demo.caption)}</p>`;
     }
 
+    function simpleLegendLine(piece) {
+      const lines = {
+        king: "This is the king. He takes one careful step.",
+        queen: "This is the queen. She moves straight or slanted on a clear road.",
+        rook: "This is the rook. It slides on straight roads.",
+        bishop: "This is the bishop. It slides on slanted roads.",
+        knight: "This is the knight. It hops in an L shape.",
+        pawn: "This is a pawn. It walks forward and takes one slanted step."
+      };
+      return lines[piece.id] || `This is the ${piece.name}. ${piece.move}`;
+    }
+
     function renderLegendReferenceCard(piece) {
       const teaching = TEACHING[piece.id];
+      const advanced = state.legendAdvanced;
       return `
-        <article class="legend-reference-card">
+        <article class="legend-reference-card ${advanced ? "is-advanced" : ""}">
           <div>
             <p class="eyebrow">${escapeHTML(piece.name)}</p>
             <div class="legend-piece-pair">
@@ -3278,18 +3824,25 @@
             </div>
           </div>
           <div>
-            <h2 class="move-map-title">${escapeHTML(teaching.compare)}</h2>
-            <p class="plain-text">${escapeHTML(piece.id === "king" ? "The king has one special move called castling in lesson 13." : piece.move)}</p>
-            <div class="legend-demo-pair">
+            <h2 class="move-map-title">${escapeHTML(piece.name)}</h2>
+            <p class="plain-text">${escapeHTML(simpleLegendLine(piece))}</p>
+            ${advanced ? `
               <div class="legend-demo-box">
-                <p class="eyebrow">can do</p>
-                ${renderMiniBoard(piece)}
+                <p class="eyebrow">advanced legend</p>
+                <h3 class="move-map-title">${escapeHTML(teaching.compare)}</h3>
+                <p class="plain-text">${escapeHTML(piece.id === "king" ? "The king has one special move called castling in lesson 13." : teaching.rule)}</p>
               </div>
-              <div class="legend-demo-box">
-                <p class="eyebrow">not this</p>
-                ${renderWrongMiniBoard(piece)}
+              <div class="legend-demo-pair">
+                <div class="legend-demo-box">
+                  <p class="eyebrow">moves like this</p>
+                  ${renderMiniBoard(piece)}
+                </div>
+                <div class="legend-demo-box">
+                  <p class="eyebrow">different shape</p>
+                  ${renderWrongMiniBoard(piece)}
+                </div>
               </div>
-            </div>
+            ` : ""}
           </div>
         </article>
       `;
@@ -3409,10 +3962,13 @@
       stage.innerHTML = `
         <section class="macro-card">
           <div>
-            <p class="eyebrow">moving reference</p>
-            <h2 class="macro-title">what pieces do</h2>
-            <p class="plain-text">Each piece has a road it likes, and a road it never uses.</p>
+            <p class="eyebrow">piece reference</p>
+            <h2 class="macro-title">what pieces are</h2>
+            <p class="plain-text">${state.legendAdvanced ? "Advanced legend is open: movement maps are showing." : "Start with the shape and one choreography line. Open advanced legend only when you want more."}</p>
           </div>
+          <button class="focus-toggle" type="button" aria-pressed="${state.legendAdvanced}" data-action="advanced-legend">
+            ${state.legendAdvanced ? "advanced legend on" : "advanced legend"}
+          </button>
         </section>
         <section class="legend-reference">
           ${PIECES.map(piece => renderLegendReferenceCard(piece)).join("")}
@@ -3549,7 +4105,6 @@
       const play = ensurePlayState();
       layout.classList.toggle("coach-off", !play.coachOn);
       const selected = play.selected ? new Set([play.selected]) : new Set();
-      const legal = new Set(play.legal || []);
       const highlights = new Set(play.hintSquares || []);
       stageLabel.textContent = "play";
       stage.innerHTML = `
@@ -3566,7 +4121,7 @@
         ${renderBoard({
           positionItems: play.position,
           selected,
-          legal,
+          legal: [],
           highlights,
           lastMove: play.lastMove || []
         })}
@@ -3597,7 +4152,7 @@
         ${play.pendingPromotion ? renderPromotionChooser() : ""}
         <section class="micro-card">
           <p class="eyebrow">tiny reminder</p>
-          <p class="micro-body">Tap your piece first. Its legal squares appear. Tap one of those squares to move.</p>
+          <p class="micro-body">Tap your piece first. Then pick the square you want. The board stays clean unless you ask for a hint.</p>
         </section>
       `;
     }
@@ -3655,6 +4210,7 @@
     }
 
     function completePlayMove(move, promotionChoice = "queen") {
+      clearHintFlash();
       const play = ensurePlayState();
       state.play = applyGameMoveSnapshot(play, move, promotionChoice);
       state.play.message = move.castle
@@ -3686,9 +4242,13 @@
       if (play.coachOn && play.askMode) {
         const answer = describePieceForCoach(play, square);
         play.coachMessage = answer.message;
-        play.hintSquares = answer.squares;
         play.message = "Coach answered. Ask another piece, or switch back to move mode.";
-        render();
+        if (answer.squares.length) {
+          startHintFlash([square, ...answer.squares]);
+        } else {
+          play.hintSquares = [];
+        }
+        if (!answer.squares.length) render();
         return;
       }
 
@@ -3712,7 +4272,7 @@
           play.legal = nextMoves.map(item => item.to);
           play.hintSquares = [];
           play.message = nextMoves.length
-            ? `${PIECE_BY_ID[tappedPiece.piece].name} selected. Tap one outlined square.`
+            ? `${PIECE_BY_ID[tappedPiece.piece].name} selected. Pick the square you want.`
             : "That piece has no legal move right now.";
           render();
           return;
@@ -3737,7 +4297,7 @@
       play.legal = legalMoves.map(item => item.to);
       play.hintSquares = [];
       play.message = legalMoves.length
-        ? `${PIECE_BY_ID[tappedPiece.piece].name} selected. Tap one outlined square.`
+        ? `${PIECE_BY_ID[tappedPiece.piece].name} selected. Pick the square you want.`
         : "That piece has no legal move right now.";
       render();
     }
@@ -3879,6 +4439,7 @@
       const viewButton = event.target.closest("[data-view]");
       if (viewButton) {
         clearFlashFeedback();
+        clearHintFlash();
         clearAllTransient();
         state.view = viewButton.dataset.view;
         if (state.view === "lessons") state.lessonMode = state.lessonMode || "demo";
@@ -3904,6 +4465,10 @@
 
       if (action === "focus") {
         state.focusMode = !state.focusMode;
+        render();
+      }
+      if (action === "advanced-legend") {
+        state.legendAdvanced = !state.legendAdvanced;
         render();
       }
       if (action === "start-test") {
@@ -3961,10 +4526,12 @@
       }
       if (action === "play-new") {
         clearBotMove();
+        clearHintFlash();
         state.play = newPlayState();
         render();
       }
       if (action === "play-coach-toggle") {
+        clearHintFlash();
         const play = ensurePlayState();
         play.coachOn = !play.coachOn;
         play.askMode = false;
@@ -3974,10 +4541,18 @@
       }
       if (action === "play-hint") {
         const play = ensurePlayState();
-        applyCoachHint(play);
-        render();
+        const flashSquares = applyCoachHint(play);
+        if (flashSquares.length) {
+          startHintFlash(flashSquares, {
+            clearCoachMessage: true,
+            restoreCoachMessage: "The flash is gone. Try the move from memory."
+          });
+        } else {
+          render();
+        }
       }
       if (action === "play-ask") {
+        clearHintFlash();
         const play = ensurePlayState();
         play.askMode = !play.askMode;
         play.hintSquares = [];
@@ -3993,6 +4568,7 @@
       }
       if (action === "reset-progress") {
         clearBotMove();
+        clearHintFlash();
         state = { ...defaultState };
         localStorage.removeItem(STORAGE_KEY);
         render();
