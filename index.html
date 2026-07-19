@@ -77,7 +77,7 @@
 
     .topbar {
       display: grid;
-      grid-template-columns: auto 1fr auto;
+      grid-template-columns: auto 1fr;
       gap: 14px;
       align-items: center;
       padding: 12px;
@@ -125,25 +125,33 @@
       box-shadow: inset 0 -5px 0 var(--pink-3);
     }
 
-    .progress-pill {
-      min-height: 40px;
-      display: grid;
-      place-items: center;
-      padding: 8px 12px;
-      border: 2px solid var(--line);
-      background: var(--pink-3);
-      font-family: "Silkscreen", monospace;
-      font-size: 12px;
-      white-space: nowrap;
-    }
-
     .layout {
       flex: 1;
       min-height: 0;
       display: grid;
-      grid-template-columns: minmax(214px, 260px) minmax(360px, 1fr) minmax(282px, 350px);
       gap: 14px;
       align-items: stretch;
+    }
+
+    .layout.lessons-layout {
+      grid-template-columns: minmax(214px, 260px) minmax(360px, 1fr) minmax(282px, 350px);
+    }
+
+    .layout.two-panel-layout,
+    .layout.play-layout {
+      grid-template-columns: minmax(360px, 1fr) minmax(282px, 350px);
+    }
+
+    .layout.play-layout.coach-off {
+      grid-template-columns: minmax(360px, 1fr);
+    }
+
+    .layout.play-layout.coach-off .legend-panel {
+      display: none;
+    }
+
+    .layout.single-panel-layout {
+      grid-template-columns: minmax(0, 1fr);
     }
 
     .panel,
@@ -200,7 +208,7 @@
       width: 100%;
       min-height: 54px;
       display: grid;
-      grid-template-columns: 36px 1fr;
+      grid-template-columns: 36px 1fr auto;
       gap: 8px;
       align-items: center;
       padding: 8px;
@@ -234,18 +242,19 @@
     }
 
     .lesson-status {
-      display: block;
-      margin-top: 3px;
-      font-size: 12px;
-      line-height: 1.2;
+      width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      border: 2px solid transparent;
+      color: var(--pink-5);
+      font-family: "Silkscreen", monospace;
+      font-size: 16px;
+      line-height: 1;
     }
 
     .lesson-button.is-done .lesson-status::after {
-      content: "done";
-    }
-
-    .lesson-button:not(.is-done) .lesson-status::after {
-      content: "not done";
+      content: "✓";
     }
 
     .stage-scroll {
@@ -527,6 +536,14 @@
       box-shadow: inset 0 0 0 3px var(--pink-5);
     }
 
+    .square.is-legal {
+      box-shadow: inset 0 0 0 3px rgba(189, 103, 152, 0.62);
+    }
+
+    .square.is-lastmove {
+      box-shadow: inset 0 0 0 3px rgba(217, 130, 178, 0.76);
+    }
+
     .piece {
       position: relative;
       z-index: 1;
@@ -697,6 +714,135 @@
       min-height: 92px;
     }
 
+    .legend-reference {
+      display: grid;
+      gap: 12px;
+    }
+
+    .legend-reference-card {
+      display: grid;
+      grid-template-columns: minmax(142px, 220px) minmax(0, 1fr);
+      gap: 12px;
+      padding: 12px;
+      border: 2px solid var(--line);
+      background: var(--white);
+    }
+
+    .legend-piece-pair {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .legend-piece-sample {
+      width: 62px;
+      height: 62px;
+      display: grid;
+      place-items: center;
+      border: 2px solid var(--line-soft);
+      background: var(--pink-1);
+      font-family: "Arial Unicode MS", "Apple Symbols", "Noto Sans Symbols 2", "Times New Roman", serif;
+      font-size: 46px;
+      font-weight: 900;
+      line-height: 1;
+      text-shadow:
+        -0.5px -0.5px 0 rgba(21, 16, 21, 0.75),
+        0.5px -0.5px 0 rgba(21, 16, 21, 0.75),
+        -0.5px 0.5px 0 rgba(21, 16, 21, 0.75),
+        0.5px 0.5px 0 rgba(21, 16, 21, 0.75);
+      -webkit-text-stroke: 0.18px rgba(21, 16, 21, 0.75);
+    }
+
+    .legend-piece-sample.soft {
+      color: var(--pink-3);
+    }
+
+    .legend-piece-sample.dark {
+      color: var(--pink-5);
+    }
+
+    .mini-board {
+      aspect-ratio: 1;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      grid-template-rows: repeat(5, 1fr);
+      border: 2px solid var(--line);
+      background: var(--white);
+    }
+
+    .mini-cell {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-width: 0;
+      min-height: 0;
+      background: var(--white);
+    }
+
+    .mini-cell.dark {
+      background: var(--pink-2);
+    }
+
+    .mini-cell.is-demo-move {
+      background: var(--pink-3);
+      box-shadow: inset 0 0 0 2px rgba(21, 16, 21, 0.22);
+    }
+
+    .mini-cell.is-demo-wrong {
+      background:
+        linear-gradient(45deg, transparent 45%, var(--black) 47%, var(--black) 53%, transparent 55%),
+        var(--pink-2);
+    }
+
+    .mini-piece {
+      color: var(--pink-5);
+      font-family: "Arial Unicode MS", "Apple Symbols", "Noto Sans Symbols 2", "Times New Roman", serif;
+      font-size: 34px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .legend-demo-pair {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .legend-demo-box {
+      display: grid;
+      gap: 7px;
+      align-content: start;
+    }
+
+    .play-status {
+      display: grid;
+      gap: 8px;
+    }
+
+    .play-controls,
+    .promotion-row {
+      display: grid;
+      gap: 8px;
+    }
+
+    .promotion-row {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .status-line {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.4;
+    }
+
+    .hint-list {
+      margin: 0;
+      padding-left: 18px;
+      font-size: 15px;
+      line-height: 1.4;
+    }
+
     .practice-list {
       display: grid;
       gap: 8px;
@@ -743,8 +889,14 @@
     @media (max-width: 1040px) {
       .layout,
       .is-focus .layout,
-      .is-practice-clean .layout {
+      .is-practice-clean .layout,
+      .layout.lessons-layout,
+      .layout.two-panel-layout,
+        .layout.play-layout,
+        .layout.play-layout.coach-off {
         grid-template-columns: 1fr;
+        align-items: start;
+        align-content: start;
       }
 
       .rail-panel,
@@ -764,7 +916,8 @@
       }
 
       .topbar,
-      .macro-card {
+      .macro-card,
+      .legend-reference-card {
         grid-template-columns: 1fr;
       }
 
@@ -772,12 +925,10 @@
         justify-content: start;
       }
 
-      .progress-pill {
-        justify-self: start;
-      }
-
       .lesson-list,
-      .full-legend {
+      .full-legend,
+      .legend-demo-pair,
+      .promotion-row {
         grid-template-columns: 1fr;
       }
 
@@ -823,45 +974,19 @@
     <header class="topbar">
       <h1 class="brand">girl<br>chess</h1>
       <nav class="view-tabs" aria-label="Views">
-        <button class="tab-button" type="button" data-view="learn">learn</button>
+        <button class="tab-button" type="button" data-view="lessons">lessons</button>
         <button class="tab-button" type="button" data-view="legend">legend</button>
         <button class="tab-button" type="button" data-view="practice">practice</button>
+        <button class="tab-button" type="button" data-view="play">play</button>
         <button class="tab-button" type="button" data-view="about">about</button>
       </nav>
-      <div class="progress-pill" id="progressPill">0/12 done</div>
     </header>
 
-    <main class="layout" id="layout">
-      <aside class="panel rail-panel" aria-label="Lesson list">
-        <div class="window-bar">
-          <span>lessons</span>
-          <span class="window-buttons"><span></span><span></span><span></span></span>
-        </div>
-        <div class="scroll-area">
-          <div class="lesson-list" id="lessonList"></div>
-        </div>
-      </aside>
-
-      <section class="board-panel" aria-label="Chess lesson">
-        <div class="window-bar">
-          <span id="stageLabel">lesson</span>
-          <span class="window-buttons"><span></span><span></span><span></span></span>
-        </div>
-        <div class="scroll-area stage-scroll" id="stage"></div>
-      </section>
-
-      <aside class="panel legend-panel" aria-label="Coach and piece legend">
-        <div class="window-bar">
-          <span>coach</span>
-          <span class="window-buttons"><span></span><span></span><span></span></span>
-        </div>
-        <div class="scroll-area" id="coach"></div>
-      </aside>
-    </main>
+    <main class="layout" id="layout"></main>
   </div>
 
   <script>
-    const APP_VERSION = "Girl Chess v2.3";
+    const APP_VERSION = "Girl Chess v3.0";
     const STORAGE_KEY = "girl-chess-progress-v1";
     const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
     const RANKS = [8, 7, 6, 5, 4, 3, 2, 1];
@@ -918,6 +1043,69 @@
     ];
 
     const PIECE_BY_ID = Object.fromEntries(PIECES.map(piece => [piece.id, piece]));
+
+    const TEACHING = {
+      pawn: {
+        rule: "pawns walk straight and take on a slant",
+        compare: "a pawn is like a careful kid crossing a street: straight ahead to walk, slanted to grab",
+        alternate: "think of the pawn as a tiny arrow: forward is travel, forward-slanted is taking",
+        wrong: "pawns do not move sideways"
+      },
+      rook: {
+        rule: "rooks use straight roads",
+        compare: "the rook is a little tower on train tracks: up, down, left, or right",
+        alternate: "the rook moves like a plus sign and never cuts a corner",
+        wrong: "rooks never move on slanted lines"
+      },
+      bishop: {
+        rule: "bishops use slanted roads",
+        compare: "the bishop only travels its own color of diagonal road",
+        alternate: "the bishop is on an X-shaped runway, not a plus sign",
+        wrong: "bishops never move straight"
+      },
+      queen: {
+        rule: "queens use straight roads and slanted roads",
+        compare: "the queen gets the rook's plus sign and the bishop's X",
+        alternate: "the queen is both train tracks and diagonal roads, as long as the path is clear",
+        wrong: "queens cannot jump over pieces"
+      },
+      knight: {
+        rule: "knights jump in an L",
+        compare: "the knight is a horse doing a two-then-one hop",
+        alternate: "look for the landing square, not the path; the knight jumps over traffic",
+        wrong: "knights do not slide in a straight line"
+      },
+      king: {
+        rule: "kings move one square",
+        compare: "the king moves like he is stepping carefully in a tiny circle around himself",
+        alternate: "the king gets one small step, then he has to stop",
+        wrong: "kings do not run across the board"
+      },
+      castling: {
+        rule: "castling tucks the king behind its rook",
+        compare: "castling is the king doing a quick safety slide while the rook closes the door",
+        alternate: "the king moves two squares and the rook becomes the guard beside him",
+        wrong: "you cannot castle out of check"
+      },
+      promotion: {
+        rule: "promotion upgrades a pawn on the last row",
+        compare: "promotion is a pawn reaching the finish line and changing outfits",
+        alternate: "when a pawn gets all the way across, it stops being a pawn",
+        wrong: "promotion only happens on the last row"
+      },
+      "en-passant": {
+        rule: "en passant is a one-turn pawn take",
+        compare: "en passant catches a pawn that rushed past your pawn too fast",
+        alternate: "your pawn takes the square the enemy pawn skipped over",
+        wrong: "en passant only works right away"
+      },
+      stalemate: {
+        rule: "stalemate is stuck but not in danger",
+        compare: "stalemate is a locked door, not a knockout",
+        alternate: "no legal move plus no check means draw",
+        wrong: "stalemate is not checkmate"
+      }
+    };
 
     function p(square, piece, side) {
       return { square, piece, side };
@@ -1043,6 +1231,431 @@
       });
 
       return { moves, captures };
+    }
+
+    const PIECE_VALUES = {
+      pawn: 1,
+      knight: 3,
+      bishop: 3,
+      rook: 5,
+      queen: 9,
+      king: 100
+    };
+
+    function clonePosition(position) {
+      return position.map(item => ({ ...item }));
+    }
+
+    function cloneCastleRights(rights) {
+      const source = rights || {};
+      return {
+        soft: { king: Boolean(source.soft && source.soft.king), queen: Boolean(source.soft && source.soft.queen) },
+        dark: { king: Boolean(source.dark && source.dark.king), queen: Boolean(source.dark && source.dark.queen) }
+      };
+    }
+
+    function oppositeSide(side) {
+      return side === "soft" ? "dark" : "soft";
+    }
+
+    function pieceAtSquare(position, square) {
+      return position.find(item => item.square === square) || null;
+    }
+
+    function removePieceAt(position, square) {
+      const index = position.findIndex(item => item.square === square);
+      if (index >= 0) return position.splice(index, 1)[0];
+      return null;
+    }
+
+    function isPathClear(position, fromSquare, toSquare, fileStep, rankStep) {
+      const from = squareParts(fromSquare);
+      let file = from.fileIndex + fileStep;
+      let rank = from.rank + rankStep;
+      let square = squareName(file, rank);
+      while (square && square !== toSquare) {
+        if (pieceAtSquare(position, square)) return false;
+        file += fileStep;
+        rank += rankStep;
+        square = squareName(file, rank);
+      }
+      return square === toSquare;
+    }
+
+    function isSquareAttacked(position, square, attackerSide) {
+      const target = squareParts(square);
+      return position.some(piece => {
+        if (piece.side !== attackerSide) return false;
+        const from = squareParts(piece.square);
+        const fileDelta = target.fileIndex - from.fileIndex;
+        const rankDelta = target.rank - from.rank;
+        const absFile = Math.abs(fileDelta);
+        const absRank = Math.abs(rankDelta);
+
+        if (piece.piece === "pawn") {
+          const direction = piece.side === "soft" ? 1 : -1;
+          return absFile === 1 && rankDelta === direction;
+        }
+        if (piece.piece === "knight") {
+          return (absFile === 1 && absRank === 2) || (absFile === 2 && absRank === 1);
+        }
+        if (piece.piece === "king") {
+          return Math.max(absFile, absRank) === 1;
+        }
+        if ((piece.piece === "rook" || piece.piece === "queen") && (fileDelta === 0 || rankDelta === 0)) {
+          const fileStep = fileDelta === 0 ? 0 : Math.sign(fileDelta);
+          const rankStep = rankDelta === 0 ? 0 : Math.sign(rankDelta);
+          return isPathClear(position, piece.square, square, fileStep, rankStep);
+        }
+        if ((piece.piece === "bishop" || piece.piece === "queen") && absFile === absRank) {
+          return isPathClear(position, piece.square, square, Math.sign(fileDelta), Math.sign(rankDelta));
+        }
+        return false;
+      });
+    }
+
+    function isKingInCheck(position, side) {
+      const king = position.find(item => item.side === side && item.piece === "king");
+      if (!king) return false;
+      return isSquareAttacked(position, king.square, oppositeSide(side));
+    }
+
+    function canCastle(play, side, wing) {
+      const rank = side === "soft" ? 1 : 8;
+      const rights = play.castleRights && play.castleRights[side];
+      if (!rights || !rights[wing]) return false;
+      const kingHome = `e${rank}`;
+      const rookHome = wing === "king" ? `h${rank}` : `a${rank}`;
+      const king = pieceAtSquare(play.position, kingHome);
+      const rook = pieceAtSquare(play.position, rookHome);
+      if (!king || king.piece !== "king" || king.side !== side) return false;
+      if (!rook || rook.piece !== "rook" || rook.side !== side) return false;
+      const emptySquares = wing === "king" ? [`f${rank}`, `g${rank}`] : [`d${rank}`, `c${rank}`, `b${rank}`];
+      if (emptySquares.some(square => pieceAtSquare(play.position, square))) return false;
+      const dangerSquares = wing === "king" ? [`e${rank}`, `f${rank}`, `g${rank}`] : [`e${rank}`, `d${rank}`, `c${rank}`];
+      return dangerSquares.every(square => !isSquareAttacked(play.position, square, oppositeSide(side)));
+    }
+
+    function pseudoGameMoves(play, fromSquare) {
+      const piece = pieceAtSquare(play.position, fromSquare);
+      if (!piece) return [];
+      const occupied = new Map(play.position.map(item => [item.square, item]));
+      const moves = [];
+      const { fileIndex, rank } = squareParts(fromSquare);
+      const addMove = (to, extra = {}) => {
+        if (!to) return false;
+        const occupant = occupied.get(to);
+        if (!occupant) {
+          moves.push({ from: fromSquare, to, side: piece.side, piece: piece.piece, ...extra });
+          return true;
+        }
+        if (occupant.side !== piece.side && occupant.piece !== "king") {
+          moves.push({ from: fromSquare, to, side: piece.side, piece: piece.piece, capture: occupant.piece, ...extra });
+        }
+        return false;
+      };
+
+      if (piece.piece === "pawn") {
+        const direction = piece.side === "soft" ? 1 : -1;
+        const startRank = piece.side === "soft" ? 2 : 7;
+        const oneAhead = squareName(fileIndex, rank + direction);
+        if (oneAhead && !occupied.has(oneAhead)) {
+          addMove(oneAhead);
+          const twoAhead = squareName(fileIndex, rank + direction * 2);
+          if (rank === startRank && twoAhead && !occupied.has(twoAhead)) addMove(twoAhead, { doublePawn: true });
+        }
+        [-1, 1].forEach(offset => {
+          const target = squareName(fileIndex + offset, rank + direction);
+          const occupant = target ? occupied.get(target) : null;
+          if (occupant && occupant.side !== piece.side && occupant.piece !== "king") {
+            addMove(target, { capture: occupant.piece });
+          }
+          if (target && target === play.enPassantTarget) {
+            const captureSquare = squareName(fileIndex + offset, rank);
+            const captured = captureSquare ? occupied.get(captureSquare) : null;
+            if (captured && captured.side !== piece.side && captured.piece === "pawn") {
+              moves.push({
+                from: fromSquare,
+                to: target,
+                side: piece.side,
+                piece: piece.piece,
+                capture: "pawn",
+                enPassant: true,
+                captureSquare
+              });
+            }
+          }
+        });
+      }
+
+      if (piece.piece === "knight") {
+        [[1, 2], [2, 1], [2, -1], [1, -2], [-1, -2], [-2, -1], [-2, 1], [-1, 2]].forEach(([fileOffset, rankOffset]) => {
+          addMove(squareName(fileIndex + fileOffset, rank + rankOffset));
+        });
+      }
+
+      if (piece.piece === "king") {
+        [-1, 0, 1].forEach(fileOffset => {
+          [-1, 0, 1].forEach(rankOffset => {
+            if (fileOffset || rankOffset) addMove(squareName(fileIndex + fileOffset, rank + rankOffset));
+          });
+        });
+        if (canCastle(play, piece.side, "king")) addMove(squareName(fileIndex + 2, rank), { castle: "king" });
+        if (canCastle(play, piece.side, "queen")) addMove(squareName(fileIndex - 2, rank), { castle: "queen" });
+      }
+
+      const slideDirections = {
+        rook: [[1, 0], [-1, 0], [0, 1], [0, -1]],
+        bishop: [[1, 1], [1, -1], [-1, 1], [-1, -1]],
+        queen: [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]
+      };
+      (slideDirections[piece.piece] || []).forEach(([fileOffset, rankOffset]) => {
+        let nextFile = fileIndex + fileOffset;
+        let nextRank = rank + rankOffset;
+        while (nextFile >= 0 && nextFile <= 7 && nextRank >= 1 && nextRank <= 8) {
+          const keepGoing = addMove(squareName(nextFile, nextRank));
+          if (!keepGoing) break;
+          nextFile += fileOffset;
+          nextRank += rankOffset;
+        }
+      });
+
+      return moves;
+    }
+
+    function applyGameMoveSnapshot(play, move, promotionChoice = "queen", withStatus = true) {
+      const next = {
+        ...play,
+        position: clonePosition(play.position),
+        castleRights: cloneCastleRights(play.castleRights),
+        enPassantTarget: null,
+        selected: null,
+        legal: [],
+        hintLevel: 0,
+        hintSquares: [],
+        pendingPromotion: null,
+        lastMove: [move.from, move.to],
+        coachMessage: "",
+        message: ""
+      };
+      const movingPiece = pieceAtSquare(next.position, move.from);
+      if (!movingPiece) return next;
+      const captured = move.enPassant
+        ? removePieceAt(next.position, move.captureSquare)
+        : removePieceAt(next.position, move.to);
+
+      if (movingPiece.piece === "king") {
+        next.castleRights[movingPiece.side].king = false;
+        next.castleRights[movingPiece.side].queen = false;
+      }
+      if (movingPiece.piece === "rook") {
+        if (move.from === (movingPiece.side === "soft" ? "h1" : "h8")) next.castleRights[movingPiece.side].king = false;
+        if (move.from === (movingPiece.side === "soft" ? "a1" : "a8")) next.castleRights[movingPiece.side].queen = false;
+      }
+      if (captured && captured.piece === "rook") {
+        if (captured.square === (captured.side === "soft" ? "h1" : "h8")) next.castleRights[captured.side].king = false;
+        if (captured.square === (captured.side === "soft" ? "a1" : "a8")) next.castleRights[captured.side].queen = false;
+      }
+
+      movingPiece.square = move.to;
+      if (movingPiece.piece === "pawn") {
+        const promotionRank = movingPiece.side === "soft" ? 8 : 1;
+        if (Number(move.to[1]) === promotionRank) movingPiece.piece = promotionChoice;
+        if (move.doublePawn) {
+          const from = squareParts(move.from);
+          const to = squareParts(move.to);
+          next.enPassantTarget = squareName(from.fileIndex, (from.rank + to.rank) / 2);
+        }
+      }
+      if (move.castle) {
+        const rank = movingPiece.side === "soft" ? 1 : 8;
+        const rookFrom = move.castle === "king" ? `h${rank}` : `a${rank}`;
+        const rookTo = move.castle === "king" ? `f${rank}` : `d${rank}`;
+        const rook = pieceAtSquare(next.position, rookFrom);
+        if (rook) rook.square = rookTo;
+      }
+
+      next.turn = oppositeSide(play.turn);
+      return withStatus ? updatePlayStatus(next) : next;
+    }
+
+    function legalGameMovesForSquare(play, fromSquare) {
+      const piece = pieceAtSquare(play.position, fromSquare);
+      if (!piece) return [];
+      return pseudoGameMoves(play, fromSquare).filter(move => {
+        const next = applyGameMoveSnapshot({ ...play, turn: piece.side }, move, "queen", false);
+        return !isKingInCheck(next.position, piece.side);
+      });
+    }
+
+    function allLegalGameMoves(play, side = play.turn) {
+      return play.position
+        .filter(piece => piece.side === side)
+        .flatMap(piece => legalGameMovesForSquare({ ...play, turn: side }, piece.square));
+    }
+
+    function hasInsufficientMaterial(position) {
+      const pieces = position.filter(piece => piece.piece !== "king");
+      if (!pieces.length) return true;
+      if (pieces.length === 1 && ["bishop", "knight"].includes(pieces[0].piece)) return true;
+      return false;
+    }
+
+    function updatePlayStatus(play) {
+      const next = { ...play };
+      const legalMoves = allLegalGameMoves(next, next.turn);
+      const inCheck = isKingInCheck(next.position, next.turn);
+      if (hasInsufficientMaterial(next.position)) {
+        next.result = "draw";
+        next.status = "Draw. There is not enough material left to trap a king.";
+        return next;
+      }
+      if (!legalMoves.length) {
+        if (inCheck) {
+          next.result = next.turn === "soft" ? "bot" : "soft";
+          next.status = next.turn === "soft"
+            ? "Checkmate. Your king is trapped."
+            : "Checkmate. You trapped the dark pink king.";
+        } else {
+          next.result = "draw";
+          next.status = "Stalemate. Nobody wins because the king is stuck but not in danger.";
+        }
+        return next;
+      }
+      next.result = null;
+      if (inCheck) {
+        next.status = next.turn === "soft"
+          ? "Check. Your king is in danger. Make it safe this move."
+          : "The dark pink king is in check.";
+      } else {
+        next.status = next.turn === "soft" ? "Your move. Pick a soft pink piece." : "Bot is thinking.";
+      }
+      return next;
+    }
+
+    function newPlayState() {
+      return updatePlayStatus({
+        position: clonePosition(STARTING_POSITION),
+        turn: "soft",
+        selected: null,
+        legal: [],
+        lastMove: [],
+        castleRights: {
+          soft: { king: true, queen: true },
+          dark: { king: true, queen: true }
+        },
+        enPassantTarget: null,
+        result: null,
+        status: "Your move. Pick a soft pink piece.",
+        message: "",
+        coachOn: false,
+        askMode: false,
+        hintLevel: 0,
+        hintSquares: [],
+        coachMessage: "",
+        busy: false,
+        pendingPromotion: null
+      });
+    }
+
+    function ensurePlayState() {
+      if (!state.play || !Array.isArray(state.play.position)) state.play = newPlayState();
+      state.play = {
+        ...newPlayState(),
+        ...state.play,
+        position: clonePosition(state.play.position),
+        castleRights: cloneCastleRights(state.play.castleRights || {
+          soft: { king: true, queen: true },
+          dark: { king: true, queen: true }
+        })
+      };
+      state.play = updatePlayStatus(state.play);
+      return state.play;
+    }
+
+    function moveNeedsPromotion(play, move) {
+      const piece = pieceAtSquare(play.position, move.from);
+      if (!piece || piece.piece !== "pawn" || piece.side !== "soft") return false;
+      return Number(move.to[1]) === 8;
+    }
+
+    function describeMove(move) {
+      const name = PIECE_BY_ID[move.piece].name;
+      if (move.castle) return "castle the king";
+      return `${name} from ${move.from} to ${move.to}`;
+    }
+
+    function explainIllegalMove(play, fromSquare, toSquare) {
+      const piece = pieceAtSquare(play.position, fromSquare);
+      if (!piece) return "Pick a soft pink piece first.";
+      const pseudo = pseudoGameMoves(play, fromSquare).some(move => move.to === toSquare);
+      if (pseudo) return "You can't move there because your king would be in danger.";
+      const teaching = TEACHING[piece.piece];
+      if (piece.piece === "pawn") return "Pawns walk straight forward and take on a slant.";
+      return teaching ? teaching.wrong : "That piece cannot move there.";
+    }
+
+    function suggestCoachMove(play) {
+      const moves = allLegalGameMoves(play, "soft");
+      if (!moves.length) return null;
+      const captures = moves.filter(move => move.capture);
+      const source = captures.length ? captures : moves;
+      return [...source].sort((a, b) => {
+        const aCapture = PIECE_VALUES[a.capture] || 0;
+        const bCapture = PIECE_VALUES[b.capture] || 0;
+        const aRisk = isSquareAttacked(applyGameMoveSnapshot(play, a, "queen", false).position, a.to, "dark") ? PIECE_VALUES[a.piece] : 0;
+        const bRisk = isSquareAttacked(applyGameMoveSnapshot(play, b, "queen", false).position, b.to, "dark") ? PIECE_VALUES[b.piece] : 0;
+        return (bCapture - bRisk) - (aCapture - aRisk);
+      })[0];
+    }
+
+    function applyCoachHint(play) {
+      const suggestion = suggestCoachMove(play);
+      if (!suggestion) {
+        play.coachMessage = "No hint right now. The game may already be over.";
+        return play;
+      }
+      play.hintLevel = Math.min(3, (play.hintLevel || 0) + 1);
+      play.hintSquares = [];
+      if (play.hintLevel === 1) {
+        play.coachMessage = isKingInCheck(play.position, "soft")
+          ? "Idea: your king is in danger, so first make the king safe."
+          : suggestion.capture
+            ? "Idea: one of your pieces can take something."
+            : "Idea: look for one piece with a clear road.";
+      } else if (play.hintLevel === 2) {
+        play.coachMessage = `Look at the ${PIECE_BY_ID[suggestion.piece].name} on ${suggestion.from}.`;
+      } else {
+        play.coachMessage = `Try ${describeMove(suggestion)}.`;
+        play.hintSquares = [suggestion.from, suggestion.to];
+      }
+      return play;
+    }
+
+    function chooseBotMove(play) {
+      const moves = allLegalGameMoves(play, "dark");
+      if (!moves.length) return null;
+      return [...moves].sort((a, b) => {
+        const aCapture = PIECE_VALUES[a.capture] || 0;
+        const bCapture = PIECE_VALUES[b.capture] || 0;
+        const aRisk = isSquareAttacked(applyGameMoveSnapshot(play, a, "queen", false).position, a.to, "soft") ? PIECE_VALUES[a.piece] : 0;
+        const bRisk = isSquareAttacked(applyGameMoveSnapshot(play, b, "queen", false).position, b.to, "soft") ? PIECE_VALUES[b.piece] : 0;
+        return (bCapture - bRisk + Math.random() * 0.1) - (aCapture - aRisk + Math.random() * 0.1);
+      }).at(-1);
+    }
+
+    function describePieceForCoach(play, square) {
+      const piece = pieceAtSquare(play.position, square);
+      if (!piece) return { message: "That square is empty.", squares: [] };
+      const teaching = TEACHING[piece.piece];
+      const moves = piece.side === "soft" ? legalGameMovesForSquare(play, square).map(move => move.to) : [];
+      const current = piece.side === "soft" && moves.length
+        ? ` Right now it can go to ${moves.slice(0, -1).join(", ")}${moves.length > 1 ? ", or " : ""}${moves.at(-1)}.`
+        : "";
+      return {
+        message: `${PIECE_BY_ID[piece.piece].name}: ${teaching.rule}.${current}`,
+        squares: moves
+      };
     }
 
     function attachTargetAssert(targets, assert) {
@@ -1768,7 +2381,7 @@
     const PRACTICE = [
       {
         title: "find both kings",
-        body: "Tap e1 and e8.",
+        body: "Tap both kings.",
         position: "start",
         targets: pieceTargets("start", "king"),
         completeMode: "all"
@@ -2032,42 +2645,67 @@
     };
 
     const defaultState = {
-      view: "learn",
+      view: "lessons",
       lessonIndex: 0,
       stepIndex: 0,
       completedLessons: {},
       foundByStep: {},
       answerShownByStep: {},
+      revealedByStep: {},
+      missCounts: {},
       feedback: "",
       activeLegend: "king",
+      legendPhase: 0,
       focusMode: false,
       lessonMode: "demo",
       practiceClean: true,
       practiceShowAnswer: false,
-      practiceIndex: 0
+      practiceIndex: 0,
+      play: null
     };
 
     let state = loadState();
     let feedbackTimer = null;
+    let botTimer = null;
 
     const app = document.getElementById("app");
-    const stage = document.getElementById("stage");
-    const coach = document.getElementById("coach");
-    const lessonList = document.getElementById("lessonList");
-    const progressPill = document.getElementById("progressPill");
-    const stageLabel = document.getElementById("stageLabel");
+    const layout = document.getElementById("layout");
+    let stage = null;
+    let coach = null;
+    let lessonList = null;
+    let stageLabel = null;
+    let scaffoldType = "";
 
     function loadState() {
       try {
-        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-        return { ...defaultState, ...saved };
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+        const next = { ...defaultState, ...saved };
+        if (next.view === "learn") next.view = "lessons";
+        next.foundByStep = {};
+        next.answerShownByStep = {};
+        next.revealedByStep = {};
+        next.missCounts = {};
+        next.feedback = "";
+        next.practiceShowAnswer = false;
+        if (next.play) next.play.busy = false;
+        return next;
       } catch (error) {
         return { ...defaultState };
       }
     }
 
     function saveState() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      const {
+        foundByStep,
+        answerShownByStep,
+        revealedByStep,
+        missCounts,
+        feedback,
+        practiceShowAnswer,
+        legendPhase,
+        ...persisted
+      } = state;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
     }
 
     function currentLesson() {
@@ -2091,10 +2729,46 @@
       state.foundByStep[key] = Array.from(found);
     }
 
+    function getRevealSet(key = currentStepKey()) {
+      return new Set(state.revealedByStep[key] || []);
+    }
+
+    function setRevealSet(squaresToReveal, key = currentStepKey()) {
+      state.revealedByStep[key] = Array.from(squaresToReveal);
+    }
+
+    function clearQuestionState(key = currentStepKey()) {
+      state.foundByStep[key] = [];
+      state.answerShownByStep[key] = false;
+      state.revealedByStep[key] = [];
+      state.missCounts[key] = 0;
+    }
+
+    function clearPracticeItem(index = state.practiceIndex) {
+      clearQuestionState(`practice:${index}`);
+      state.practiceShowAnswer = false;
+    }
+
+    function clearAllTransient() {
+      state.foundByStep = {};
+      state.answerShownByStep = {};
+      state.revealedByStep = {};
+      state.missCounts = {};
+      state.practiceShowAnswer = false;
+      state.feedback = "";
+    }
+
     function clearFlashFeedback() {
       if (feedbackTimer) {
         window.clearTimeout(feedbackTimer);
         feedbackTimer = null;
+      }
+    }
+
+    function clearBotMove() {
+      if (botTimer) {
+        window.clearTimeout(botTimer);
+        botTimer = null;
       }
     }
 
@@ -2143,6 +2817,54 @@
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
+    }
+
+    function windowButtonMarkup() {
+      return `<span class="window-buttons"><span></span><span></span><span></span></span>`;
+    }
+
+    function panelMarkup(kind, label, id, extraClass = "") {
+      const classes = [kind, extraClass].filter(Boolean).join(" ");
+      return `
+        <section class="${classes}" aria-label="${escapeHTML(label)}">
+          <div class="window-bar">
+            <span ${id === "stage" ? "id=\"stageLabel\"" : ""}>${escapeHTML(label)}</span>
+            ${windowButtonMarkup()}
+          </div>
+          <div class="scroll-area ${id === "stage" ? "stage-scroll" : ""}" id="${id}"></div>
+        </section>
+      `;
+    }
+
+    function setScaffold(type) {
+      if (scaffoldType === type && stage) return;
+      scaffoldType = type;
+      stage = null;
+      coach = null;
+      lessonList = null;
+      stageLabel = null;
+      layout.className = `layout ${type}`;
+      if (type === "lessons-layout") {
+        layout.innerHTML = `
+          <aside class="panel rail-panel" aria-label="Lesson list">
+            <div class="window-bar"><span>lessons</span>${windowButtonMarkup()}</div>
+            <div class="scroll-area"><div class="lesson-list" id="lessonList"></div></div>
+          </aside>
+          ${panelMarkup("board-panel", "lesson", "stage")}
+          ${panelMarkup("panel", "coach", "coach", "legend-panel")}
+        `;
+      } else if (type === "two-panel-layout" || type === "play-layout") {
+        layout.innerHTML = `
+          ${panelMarkup("board-panel", type === "play-layout" ? "play" : "practice", "stage")}
+          ${panelMarkup("panel", "coach", "coach", "legend-panel")}
+        `;
+      } else {
+        layout.innerHTML = panelMarkup("board-panel", "section", "stage");
+      }
+      stage = document.getElementById("stage");
+      coach = document.getElementById("coach");
+      lessonList = document.getElementById("lessonList");
+      stageLabel = document.getElementById("stageLabel");
     }
 
     function isStepReady(step, found) {
@@ -2211,6 +2933,123 @@
       return { totalItems, legalAssertions, specialAssertions };
     }
 
+    function testCastleRights() {
+      return {
+        soft: { king: false, queen: false },
+        dark: { king: false, queen: false }
+      };
+    }
+
+    function testPlay(position, extras = {}) {
+      return {
+        ...newPlayState(),
+        position: clonePosition(position),
+        turn: "soft",
+        castleRights: testCastleRights(),
+        enPassantTarget: null,
+        selected: null,
+        legal: [],
+        lastMove: [],
+        ...extras
+      };
+    }
+
+    function validateGameLegality() {
+      const errors = [];
+      const assert = (condition, label) => {
+        if (!condition) errors.push(label);
+      };
+
+      const pinned = testPlay([
+        p("e1", "king", "soft"), p("e2", "rook", "soft"), p("a8", "king", "dark"), p("e8", "rook", "dark")
+      ]);
+      assert(!legalGameMovesForSquare(pinned, "e2").some(move => move.to === "d2"), "pinned rook must not move sideways and expose king");
+
+      const checked = testPlay([
+        p("e1", "king", "soft"), p("a1", "rook", "soft"), p("a8", "king", "dark"), p("e8", "rook", "dark")
+      ]);
+      assert(!allLegalGameMoves(checked, "soft").some(move => move.from === "a1" && move.to === "a2"), "random move must not be legal while king is in check");
+
+      const castleThroughDanger = testPlay([
+        p("e1", "king", "soft"), p("h1", "rook", "soft"), p("e8", "king", "dark"), p("c4", "bishop", "dark")
+      ], { castleRights: { soft: { king: true, queen: false }, dark: { king: false, queen: false } } });
+      assert(!legalGameMovesForSquare(castleThroughDanger, "e1").some(move => move.castle === "king"), "castling through attacked f1 must be illegal");
+
+      const enPassantOpen = testPlay([
+        p("e5", "pawn", "soft"), p("d5", "pawn", "dark"), p("e1", "king", "soft"), p("e8", "king", "dark")
+      ], { enPassantTarget: "d6" });
+      assert(legalGameMovesForSquare(enPassantOpen, "e5").some(move => move.enPassant && move.to === "d6"), "en passant window should allow d6");
+      const quietMove = legalGameMovesForSquare(enPassantOpen, "e1").find(move => move.to === "f1");
+      const enPassantExpired = applyGameMoveSnapshot(enPassantOpen, quietMove, "queen", false);
+      assert(!legalGameMovesForSquare(enPassantExpired, "e5").some(move => move.enPassant), "en passant window must expire after one move");
+
+      const promotionPlay = testPlay(POSITIONS.promotion);
+      const promotionMove = legalGameMovesForSquare(promotionPlay, "g7").find(move => move.to === "g8");
+      const promoted = applyGameMoveSnapshot(promotionPlay, promotionMove, "queen", false);
+      assert(pieceAtSquare(promoted.position, "g8").piece === "queen", "promotion should create a queen by default");
+
+      const matePlay = testPlay(POSITIONS.mate, { turn: "dark" });
+      assert(isKingInCheck(matePlay.position, "dark") && allLegalGameMoves(matePlay, "dark").length === 0, "mate position should be checkmate");
+
+      const stalePlay = testPlay(POSITIONS.stalemate, { turn: "dark" });
+      assert(!isKingInCheck(stalePlay.position, "dark") && allLegalGameMoves(stalePlay, "dark").length === 0, "stalemate position should be stuck but not checked");
+
+      if (errors.length) {
+        throw new Error(`Game legality validation failed:\n${errors.join("\n")}`);
+      }
+      return { gameLegalityTests: 7 };
+    }
+
+    function ruleKeyForItem(item) {
+      if (item.ruleKey) return item.ruleKey;
+      const assert = item.targets && item.targets._targetAssert;
+      if (assert && assert.kind === "legal") {
+        const piece = (POSITIONS[assert.positionName] || []).find(entry => entry.square === assert.fromSquare);
+        return piece ? piece.piece : null;
+      }
+      if (assert && assert.kind === "special") return assert.rule;
+      const text = `${item.title || ""} ${item.body || ""} ${item.prompt || ""}`.toLowerCase();
+      return Object.keys(TEACHING).find(key => text.includes(key)) || null;
+    }
+
+    function otherSquaresText(targets, tapped) {
+      const others = targets.filter(square => square !== tapped);
+      if (!others.length) return "";
+      if (others.length === 1) return ` It could also be ${others[0]}.`;
+      return ` It could also be ${others.slice(0, -1).join(", ")}, or ${others.at(-1)}.`;
+    }
+
+    function answerFamilyForItem(item) {
+      const assert = item.targets && item.targets._targetAssert;
+      if (!assert || assert.kind !== "legal") return item.targets || [];
+      const legal = legalDestinations(POSITIONS[assert.positionName], assert.fromSquare);
+      const source = assert.mode === "moves"
+        ? legal.moves
+        : assert.mode === "captures"
+          ? legal.captures
+          : [...legal.moves, ...legal.captures];
+      return source.filter(square => !assert.filter || assert.filter(square));
+    }
+
+    function correctFeedback(item, tapped) {
+      if (item.why) return item.why;
+      const key = ruleKeyForItem(item);
+      const teaching = TEACHING[key];
+      if (!teaching) return item.success || "Yes. That is right.";
+      const assert = item.targets && item.targets._targetAssert;
+      const fromText = assert && assert.kind === "legal" ? ` From ${assert.fromSquare}` : "";
+      return `Yes — ${teaching.rule}.${fromText}${otherSquaresText(answerFamilyForItem(item), tapped)}`;
+    }
+
+    function alternateBody(item) {
+      const key = ruleKeyForItem(item);
+      return (key && TEACHING[key] && TEACHING[key].alternate) || item.body;
+    }
+
+    function promptFor(item, fallback = "Tap the board when the step asks you to.") {
+      return item.prompt || fallback;
+    }
+
     function updateCompletedLesson() {
       const lesson = currentLesson();
       const allStepsReady = lesson.steps.every((step, index) => {
@@ -2251,10 +3090,13 @@
 
     function renderBoard(options) {
       const position = options.position || "start";
+      const positionItems = options.positionItems || POSITIONS[position] || [];
       const targets = new Set(options.targets || []);
       const highlights = new Set(options.highlights || []);
       const found = options.found || new Set();
       const selected = new Set(options.selected || []);
+      const legal = new Set(options.legal || []);
+      const lastMove = new Set(options.lastMove || []);
       const showTargets = Boolean(options.showTargets);
 
       const topFiles = `<div class="files">${FILES.map(file => `<span>${file}</span>`).join("")}</div>`;
@@ -2264,14 +3106,16 @@
       for (const rank of RANKS) {
         FILES.forEach((file, fileIndex) => {
           const square = `${file}${rank}`;
-          const piece = pieceAt(position, square);
+          const piece = positionItems.find(item => item.square === square);
           const classes = [
             "square",
             isDarkSquare(fileIndex, rank) ? "dark" : "light",
             showTargets && targets.has(square) ? "is-target" : "",
             highlights.has(square) ? "is-highlight" : "",
             found.has(square) ? "is-found" : "",
-            selected.has(square) ? "is-selected" : ""
+            selected.has(square) ? "is-selected" : "",
+            legal.has(square) ? "is-legal" : "",
+            lastMove.has(square) ? "is-lastmove" : ""
           ].filter(Boolean).join(" ");
           const pieceMarkup = piece
             ? `<span class="piece ${piece.side === "dark" ? "dark-piece" : "soft-piece"}" aria-hidden="true">${PIECE_BY_ID[piece.piece].symbol}</span>`
@@ -2339,15 +3183,16 @@
     }
 
     function renderLessonList() {
+      if (!lessonList) return;
       lessonList.innerHTML = LESSONS.map((lesson, index) => {
-        const isActive = index === state.lessonIndex && state.view === "learn";
+        const isActive = index === state.lessonIndex && state.view === "lessons";
         const isDone = Boolean(state.completedLessons[lesson.id]);
         return `
           <button class="lesson-button ${isActive ? "is-active" : ""} ${isDone ? "is-done" : ""}" type="button" data-lesson="${index}">
             <span class="lesson-number">${String(index + 1).padStart(2, "0")}</span>
             <span>
               <span class="lesson-name">${escapeHTML(lesson.title)}</span>
-              <span class="lesson-status"></span>
+              <span class="lesson-status" aria-label="${isDone ? "done" : ""}"></span>
             </span>
           </button>
         `;
@@ -2370,14 +3215,96 @@
       `;
     }
 
+    function miniDemoFor(pieceId) {
+      const base = {
+        pawn: { center: [3, 2], legal: [[2, 2], [1, 2], [2, 1]], wrong: [3, 3], caption: "pawns walk forward, take slanted" },
+        rook: { center: [2, 2], legal: [[0, 2], [2, 4], [4, 2]], wrong: [1, 3], caption: "rooks never slant" },
+        bishop: { center: [2, 2], legal: [[0, 0], [0, 4], [4, 0]], wrong: [0, 2], caption: "bishops never move straight" },
+        queen: { center: [2, 2], legal: [[0, 2], [0, 0], [2, 4]], wrong: [1, 4], caption: "queens need a clear straight or slanted road" },
+        knight: { center: [2, 2], legal: [[0, 1], [1, 4], [4, 3]], wrong: [2, 4], caption: "knights jump in an L, not a line" },
+        king: { center: [2, 2], legal: [[1, 1], [1, 2], [2, 3]], wrong: [0, 2], caption: "kings take one small step" }
+      };
+      return base[pieceId] || base.king;
+    }
+
+    function renderMiniBoard(piece) {
+      const demo = miniDemoFor(piece.id);
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const phase = reduceMotion ? 0 : state.legendPhase % demo.legal.length;
+      const activeLegal = demo.legal[phase];
+      const cells = [];
+      for (let row = 0; row < 5; row += 1) {
+        for (let col = 0; col < 5; col += 1) {
+          const isCenter = row === demo.center[0] && col === demo.center[1];
+          const isMove = activeLegal && row === activeLegal[0] && col === activeLegal[1];
+          const classes = [
+            "mini-cell",
+            (row + col) % 2 === 1 ? "dark" : "",
+            isMove ? "is-demo-move" : ""
+          ].filter(Boolean).join(" ");
+          cells.push(`<span class="${classes}">${isCenter ? `<span class="mini-piece">${piece.symbol}</span>` : ""}</span>`);
+        }
+      }
+      return `<div class="mini-board" aria-hidden="true">${cells.join("")}</div><p class="plain-text">${escapeHTML(TEACHING[piece.id].rule)}</p>`;
+    }
+
+    function renderWrongMiniBoard(piece) {
+      const demo = miniDemoFor(piece.id);
+      const cells = [];
+      for (let row = 0; row < 5; row += 1) {
+        for (let col = 0; col < 5; col += 1) {
+          const isCenter = row === demo.center[0] && col === demo.center[1];
+          const isWrong = row === demo.wrong[0] && col === demo.wrong[1];
+          const classes = [
+            "mini-cell",
+            (row + col) % 2 === 1 ? "dark" : "",
+            isWrong ? "is-demo-wrong" : ""
+          ].filter(Boolean).join(" ");
+          cells.push(`<span class="${classes}">${isCenter ? `<span class="mini-piece">${piece.symbol}</span>` : ""}</span>`);
+        }
+      }
+      return `<div class="mini-board" aria-hidden="true">${cells.join("")}</div><p class="plain-text">${escapeHTML(demo.caption)}</p>`;
+    }
+
+    function renderLegendReferenceCard(piece) {
+      const teaching = TEACHING[piece.id];
+      return `
+        <article class="legend-reference-card">
+          <div>
+            <p class="eyebrow">${escapeHTML(piece.name)}</p>
+            <div class="legend-piece-pair">
+              <span class="legend-piece-sample soft" aria-hidden="true">${piece.symbol}</span>
+              <span class="legend-piece-sample dark" aria-hidden="true">${piece.symbol}</span>
+            </div>
+          </div>
+          <div>
+            <h2 class="move-map-title">${escapeHTML(teaching.compare)}</h2>
+            <p class="plain-text">${escapeHTML(piece.id === "king" ? "The king has one special move called castling in lesson 13." : piece.move)}</p>
+            <div class="legend-demo-pair">
+              <div class="legend-demo-box">
+                <p class="eyebrow">can do</p>
+                ${renderMiniBoard(piece)}
+              </div>
+              <div class="legend-demo-box">
+                <p class="eyebrow">not this</p>
+                ${renderWrongMiniBoard(piece)}
+              </div>
+            </div>
+          </div>
+        </article>
+      `;
+    }
+
     function renderLearn() {
       const lesson = currentLesson();
       const demo = lessonDemo(lesson);
       const step = currentStep();
       const key = currentStepKey();
       const found = getFoundSet(key);
+      const revealed = getRevealSet(key);
       const answerShown = currentAnswerWasShown(key);
       const stepReady = isStepPassed(step, found, key);
+      const bodyText = (state.missCounts[key] || 0) >= 3 ? alternateBody(step) : step.body;
       const meter = state.lessonMode === "demo"
         ? 0
         : ((state.stepIndex + (stepReady ? 1 : 0)) / lesson.steps.length) * 100;
@@ -2444,6 +3371,7 @@
         ${renderBoard({
           position: stepPosition(lesson, step),
           targets: step.targets,
+          highlights: revealed,
           found,
           selected: found,
           showTargets: answerShown
@@ -2459,15 +3387,15 @@
           <div>
             <p class="eyebrow">tiny step</p>
             <h2 class="micro-title">${escapeHTML(step.title)}</h2>
-            <p class="micro-body">${escapeHTML(step.body)}</p>
+            <p class="micro-body">${escapeHTML(bodyText)}</p>
           </div>
           <div class="feedback" role="status">${escapeHTML(state.feedback || step.prompt || "Tap the board when the step asks you to.")}</div>
           <div class="action-row three">
             <button class="small-button" type="button" data-action="back" ${state.stepIndex === 0 ? "disabled" : ""}>back</button>
-            <button class="small-button" type="button" data-action="answer">show answer</button>
+            <button class="small-button" type="button" data-action="answer">${answerShown ? "hide answer" : "show answer"}</button>
             <button class="primary-button" type="button" data-action="next" ${stepReady ? "" : "disabled"}>${state.stepIndex === lesson.steps.length - 1 ? "finish" : "next"}</button>
           </div>
-          <button class="small-button" type="button" data-action="retry-step" ${found.size || answerShown ? "" : "disabled"}>reset question</button>
+          <button class="small-button" type="button" data-action="retry-step" ${found.size || answerShown || revealed.size ? "" : "disabled"}>reset question</button>
         </section>
         <section class="micro-card">
           <p class="eyebrow">piece guide</p>
@@ -2477,33 +3405,17 @@
     }
 
     function renderLegendView() {
-      stageLabel.textContent = "piece guide";
-      const active = PIECE_BY_ID[state.activeLegend] || PIECES[0];
+      stageLabel.textContent = "legend";
       stage.innerHTML = `
         <section class="macro-card">
           <div>
-            <p class="eyebrow">big picture</p>
-            <h2 class="macro-title">the chess set</h2>
-            <p class="plain-text">Both teams have the same six kinds of pieces. Learn the shape first, then the move.</p>
-            <p class="plain-text">Start by recognizing what each piece looks like. You do not need strategy yet.</p>
+            <p class="eyebrow">moving reference</p>
+            <h2 class="macro-title">what pieces do</h2>
+            <p class="plain-text">Each piece has a road it likes, and a road it never uses.</p>
           </div>
         </section>
-        <section class="practice-card">
-          <p class="eyebrow">tap a piece</p>
-          ${renderLegendCards(true)}
-        </section>
-      `;
-      coach.innerHTML = `
-        <section class="micro-card">
-          <p class="eyebrow">selected piece</p>
-          <h2 class="micro-title">${escapeHTML(active.name)}</h2>
-          <p class="micro-body">${escapeHTML(active.role)}</p>
-          <p class="plain-text">${escapeHTML(active.move)}</p>
-          <div class="feedback">${escapeHTML(active.bridge)}</div>
-        </section>
-        <section class="micro-card">
-          <p class="eyebrow">quick rule</p>
-          <p class="micro-body">An allowed move means the piece is allowed to go there, and your king is still safe after.</p>
+        <section class="legend-reference">
+          ${PIECES.map(piece => renderLegendReferenceCard(piece)).join("")}
         </section>
       `;
     }
@@ -2535,14 +3447,17 @@
       const item = PRACTICE[state.practiceIndex] || PRACTICE[0];
       const key = `practice:${state.practiceIndex}`;
       const found = getFoundSet(key);
+      const revealed = getRevealSet(key);
       const ready = isStepReady(item, found);
       const showTargets = state.practiceShowAnswer;
+      const bodyText = (state.missCounts[key] || 0) >= 3 ? alternateBody(item) : item.body;
 
       stageLabel.textContent = "practice";
       stage.innerHTML = `
         ${renderBoard({
           position: item.position,
           targets: item.targets,
+          highlights: revealed,
           found,
           selected: found,
           showTargets
@@ -2553,7 +3468,7 @@
         <section class="micro-card">
           <p class="eyebrow">practice ${state.practiceIndex + 1}/${PRACTICE.length}</p>
           <h2 class="micro-title">${escapeHTML(item.title)}</h2>
-          <p class="micro-body">${escapeHTML(item.body)}</p>
+          <p class="micro-body">${escapeHTML(bodyText)}</p>
           <div class="feedback" role="status">${escapeHTML(state.feedback || "Tap the answer on the board.")}</div>
           <div class="action-row three">
             <button class="small-button" type="button" data-action="practice-reset">reset</button>
@@ -2581,9 +3496,7 @@
           <p class="plain-text">The app teaches in two layers: the whole idea first, then one small action at a time.</p>
           <p class="version">${APP_VERSION}<br>Built for April Korto Quioh</p>
         </section>
-      `;
-      coach.innerHTML = `
-        <section class="micro-card">
+        <section class="about-card">
           <p class="eyebrow">storage</p>
           <p class="micro-body">Progress saves on this device.</p>
           <button class="small-button" type="button" data-action="reset-progress">reset progress</button>
@@ -2591,27 +3504,251 @@
       `;
     }
 
+    function renderPromotionChooser() {
+      return `
+        <section class="micro-card">
+          <p class="eyebrow">promotion</p>
+          <h2 class="micro-title">choose the new piece</h2>
+          <p class="micro-body">Queen is the usual beginner choice.</p>
+          <div class="promotion-row">
+            ${["queen", "rook", "bishop", "knight"].map(piece => `
+              <button class="${piece === "queen" ? "primary-button" : "small-button"}" type="button" data-action="promote-choice" data-piece-choice="${piece}">
+                ${piece}
+              </button>
+            `).join("")}
+          </div>
+        </section>
+      `;
+    }
+
+    function renderPlay() {
+      if (!allLessonsPassed()) {
+        const nextIndex = nextIncompleteLessonIndex();
+        const nextLesson = LESSONS[nextIndex];
+        layout.classList.remove("coach-off");
+        stageLabel.textContent = "play locked";
+        stage.innerHTML = `
+          <section class="about-card">
+            <p class="eyebrow">locked</p>
+            <h2 class="view-title">play unlocks after lessons</h2>
+            <p class="plain-text">Finish the lesson path first. Then you can practice inside a real game.</p>
+            <p class="plain-text">Next lesson to pass: ${escapeHTML(nextLesson.label)}.</p>
+          </section>
+        `;
+        coach.innerHTML = `
+          <section class="micro-card">
+            <p class="eyebrow">next step</p>
+            <h2 class="micro-title">${escapeHTML(nextLesson.title)}</h2>
+            <p class="micro-body">Go back to lessons and pass this test first.</p>
+            <button class="primary-button" type="button" data-action="go-needed-lesson">go to lesson</button>
+          </section>
+        `;
+        return;
+      }
+
+      const play = ensurePlayState();
+      layout.classList.toggle("coach-off", !play.coachOn);
+      const selected = play.selected ? new Set([play.selected]) : new Set();
+      const legal = new Set(play.legal || []);
+      const highlights = new Set(play.hintSquares || []);
+      stageLabel.textContent = "play";
+      stage.innerHTML = `
+        <section class="macro-card">
+          <div>
+            <p class="eyebrow">real game</p>
+            <h2 class="macro-title">${play.turn === "soft" ? "your move" : "bot move"}</h2>
+            <p class="plain-text">${escapeHTML(play.message || play.status)}</p>
+          </div>
+          <button class="focus-toggle" type="button" aria-pressed="${play.coachOn}" data-action="play-coach-toggle">
+            ${play.coachOn ? "coach off" : "coach on"}
+          </button>
+        </section>
+        ${renderBoard({
+          positionItems: play.position,
+          selected,
+          legal,
+          highlights,
+          lastMove: play.lastMove || []
+        })}
+        ${play.pendingPromotion ? renderPromotionChooser() : ""}
+      `;
+
+      if (!play.coachOn) {
+        coach.innerHTML = "";
+        return;
+      }
+
+      coach.innerHTML = `
+        <section class="micro-card">
+          <p class="eyebrow">coach</p>
+          <h2 class="micro-title">${play.askMode ? "ask mode on" : "on demand"}</h2>
+          <p class="micro-body">${escapeHTML(play.coachMessage || "Use hints only when you want them. Ask mode lets you tap any piece to ask what it does.")}</p>
+          <div class="feedback" role="status">${escapeHTML(play.status)}</div>
+          <div class="play-controls">
+            <button class="primary-button" type="button" data-action="play-hint" ${play.turn !== "soft" || play.result ? "disabled" : ""}>
+              ${play.hintLevel ? `hint ${Math.min(play.hintLevel + 1, 3)}` : "hint"}
+            </button>
+            <button class="small-button" type="button" data-action="play-ask" aria-pressed="${play.askMode}">
+              ${play.askMode ? "move mode" : "ask mode"}
+            </button>
+            <button class="small-button" type="button" data-action="play-new">new game</button>
+          </div>
+        </section>
+        ${play.pendingPromotion ? renderPromotionChooser() : ""}
+        <section class="micro-card">
+          <p class="eyebrow">tiny reminder</p>
+          <p class="micro-body">Tap your piece first. Its legal squares appear. Tap one of those squares to move.</p>
+        </section>
+      `;
+    }
+
     function render() {
-      app.classList.toggle("is-focus", state.focusMode && state.view === "learn");
+      app.classList.toggle("is-focus", state.focusMode && state.view === "lessons");
       app.classList.toggle("is-practice-clean", state.practiceClean && state.view === "practice" && allLessonsPassed());
-      progressPill.textContent = progressText();
       document.querySelectorAll(".tab-button").forEach(button => {
         button.setAttribute("aria-pressed", String(button.dataset.view === state.view));
       });
-      renderLessonList();
-      if (state.view === "learn") renderLearn();
-      if (state.view === "legend") renderLegendView();
-      if (state.view === "practice") renderPractice();
-      if (state.view === "about") renderAbout();
+      if (state.view === "lessons") {
+        setScaffold("lessons-layout");
+        renderLessonList();
+        renderLearn();
+      }
+      if (state.view === "legend") {
+        setScaffold("single-panel-layout");
+        renderLegendView();
+      }
+      if (state.view === "practice") {
+        setScaffold("two-panel-layout");
+        renderPractice();
+      }
+      if (state.view === "play") {
+        setScaffold("play-layout");
+        renderPlay();
+      }
+      if (state.view === "about") {
+        setScaffold("single-panel-layout");
+        renderAbout();
+      }
       saveState();
+    }
+
+    function queueBotMove() {
+      clearBotMove();
+      const play = ensurePlayState();
+      if (play.turn !== "dark" || play.result) return;
+      play.busy = true;
+      play.message = "Bot is thinking.";
+      render();
+      botTimer = window.setTimeout(() => {
+        botTimer = null;
+        const current = ensurePlayState();
+        if (current.turn !== "dark" || current.result) return;
+        const move = chooseBotMove(current);
+        if (!move) {
+          state.play = updatePlayStatus({ ...current, busy: false });
+        } else {
+          state.play = applyGameMoveSnapshot({ ...current, busy: false }, move, "queen");
+          state.play.message = `Bot moved ${describeMove(move)}.`;
+        }
+        render();
+      }, 520);
+    }
+
+    function completePlayMove(move, promotionChoice = "queen") {
+      const play = ensurePlayState();
+      state.play = applyGameMoveSnapshot(play, move, promotionChoice);
+      state.play.message = move.castle
+        ? "You castled. The king slid toward the rook, and the rook tucked beside him."
+        : `You moved ${describeMove({ ...move, piece: promotionChoice === "queen" && move.piece === "pawn" && Number(move.to[1]) === 8 ? "queen" : move.piece })}.`;
+      render();
+      queueBotMove();
+    }
+
+    function handlePlaySquare(square) {
+      const play = ensurePlayState();
+      if (play.pendingPromotion) {
+        play.message = "Choose the promotion piece first.";
+        render();
+        return;
+      }
+      if (play.result) {
+        play.message = play.status;
+        render();
+        return;
+      }
+      if (play.turn !== "soft" || play.busy) {
+        play.message = "Wait for the bot move to finish.";
+        render();
+        return;
+      }
+
+      const tappedPiece = pieceAtSquare(play.position, square);
+      if (play.coachOn && play.askMode) {
+        const answer = describePieceForCoach(play, square);
+        play.coachMessage = answer.message;
+        play.hintSquares = answer.squares;
+        play.message = "Coach answered. Ask another piece, or switch back to move mode.";
+        render();
+        return;
+      }
+
+      if (play.selected) {
+        const legalMoves = legalGameMovesForSquare(play, play.selected);
+        const move = legalMoves.find(item => item.to === square);
+        if (move) {
+          if (moveNeedsPromotion(play, move)) {
+            play.pendingPromotion = move;
+            play.message = "Your pawn reached the last row. Choose what it becomes.";
+            play.legal = [move.to];
+            render();
+            return;
+          }
+          completePlayMove(move);
+          return;
+        }
+        if (tappedPiece && tappedPiece.side === "soft") {
+          const nextMoves = legalGameMovesForSquare(play, square);
+          play.selected = square;
+          play.legal = nextMoves.map(item => item.to);
+          play.hintSquares = [];
+          play.message = nextMoves.length
+            ? `${PIECE_BY_ID[tappedPiece.piece].name} selected. Tap one outlined square.`
+            : "That piece has no legal move right now.";
+          render();
+          return;
+        }
+        play.message = explainIllegalMove(play, play.selected, square);
+        render();
+        return;
+      }
+
+      if (!tappedPiece) {
+        play.message = "Pick a soft pink piece first.";
+        render();
+        return;
+      }
+      if (tappedPiece.side !== "soft") {
+        play.message = "That is dark pink. Pick a soft pink piece.";
+        render();
+        return;
+      }
+      const legalMoves = legalGameMovesForSquare(play, square);
+      play.selected = square;
+      play.legal = legalMoves.map(item => item.to);
+      play.hintSquares = [];
+      play.message = legalMoves.length
+        ? `${PIECE_BY_ID[tappedPiece.piece].name} selected. Tap one outlined square.`
+        : "That piece has no legal move right now.";
+      render();
     }
 
     function handleSquare(square) {
       clearFlashFeedback();
-      if (state.view === "learn") {
+      if (state.view === "lessons") {
         const lesson = currentLesson();
         const step = currentStep();
-        const found = getFoundSet();
+        const key = currentStepKey();
+        const found = getFoundSet(key);
         if (!step.targets || step.targets.length === 0) {
           state.feedback = "No tap needed here. Press next.";
           render();
@@ -2619,15 +3756,18 @@
         }
         if (step.targets.includes(square)) {
           found.add(square);
-          setFoundSet(found);
+          setFoundSet(found, key);
           if (currentAnswerWasShown()) {
             state.feedback = "That is the answer. Reset this question and do it without showing the answer to pass.";
           } else {
-            state.feedback = isStepReady(step, found) ? step.success : "Good. Find the next one.";
+            state.missCounts[key] = 0;
+            setRevealSet(answerFamilyForItem(step), key);
+            state.feedback = isStepReady(step, found) ? correctFeedback(step, square) : "Good. Find the next one.";
           }
           updateCompletedLesson();
         } else {
-          flashFeedback("No, not that one.", step.prompt || "Tap the board when the step asks you to.");
+          state.missCounts[key] = (state.missCounts[key] || 0) + 1;
+          flashFeedback("No, not that one.", promptFor(step));
           return;
         }
         render();
@@ -2641,18 +3781,35 @@
         if (item.targets.includes(square)) {
           found.add(square);
           setFoundSet(found, key);
-          state.feedback = isStepReady(item, found) ? "Correct." : "Good. Keep going.";
+          state.missCounts[key] = 0;
+          setRevealSet(answerFamilyForItem(item), key);
+          state.feedback = isStepReady(item, found) ? correctFeedback(item, square) : "Good. Keep going.";
         } else {
-          flashFeedback("No, not that one.", "Tap the answer on the board.");
+          state.missCounts[key] = (state.missCounts[key] || 0) + 1;
+          flashFeedback("No, not that one.", promptFor(item, "Tap the answer on the board."));
           return;
         }
         render();
+        return;
+      }
+
+      if (state.view === "play") {
+        handlePlaySquare(square);
       }
     }
 
     function showAnswer() {
       const step = currentStep();
-      state.answerShownByStep[currentStepKey()] = true;
+      const key = currentStepKey();
+      if (currentAnswerWasShown(key)) {
+        clearQuestionState(key);
+        state.feedback = "";
+        render();
+        return;
+      }
+      state.answerShownByStep[key] = true;
+      state.revealedByStep[key] = [];
+      state.foundByStep[key] = [];
       state.feedback = step.targets && step.targets.length
         ? `Answer shown: ${step.targets.join(", ")}. Reset this question to pass it.`
         : "No board tap is needed here.";
@@ -2673,8 +3830,10 @@
       if (state.stepIndex < lesson.steps.length - 1) {
         state.stepIndex += 1;
         state.feedback = "";
+        clearQuestionState(currentStepKey());
       } else {
         state.completedLessons[lesson.id] = true;
+        clearAllTransient();
         if (state.lessonIndex < LESSONS.length - 1) {
           state.lessonIndex += 1;
           state.stepIndex = 0;
@@ -2691,6 +3850,7 @@
       if (state.stepIndex > 0) {
         state.stepIndex -= 1;
         state.feedback = "";
+        clearQuestionState(currentStepKey());
         render();
       }
     }
@@ -2705,7 +3865,8 @@
       const lessonButton = event.target.closest("[data-lesson]");
       if (lessonButton) {
         clearFlashFeedback();
-        state.view = "learn";
+        clearAllTransient();
+        state.view = "lessons";
         state.lessonIndex = Number(lessonButton.dataset.lesson);
         state.stepIndex = 0;
         state.lessonMode = "demo";
@@ -2718,9 +3879,11 @@
       const viewButton = event.target.closest("[data-view]");
       if (viewButton) {
         clearFlashFeedback();
+        clearAllTransient();
         state.view = viewButton.dataset.view;
-        if (state.view === "learn") state.lessonMode = state.lessonMode || "demo";
-        if (state.view === "practice") state.practiceShowAnswer = false;
+        if (state.view === "lessons") state.lessonMode = state.lessonMode || "demo";
+        if (state.view === "practice") clearPracticeItem(state.practiceIndex);
+        if (state.view === "play") ensurePlayState();
         state.feedback = "";
         render();
         return;
@@ -2746,32 +3909,39 @@
       if (action === "start-test") {
         state.lessonMode = "quiz";
         state.feedback = "";
+        clearQuestionState(currentStepKey());
         render();
       }
       if (action === "back") goBack();
       if (action === "answer") showAnswer();
       if (action === "next") goNext();
       if (action === "retry-step") {
-        const key = currentStepKey();
-        state.foundByStep[key] = [];
-        state.answerShownByStep[key] = false;
+        clearQuestionState(currentStepKey());
         state.feedback = "";
         render();
       }
       if (action === "practice-reset") {
-        state.foundByStep[`practice:${state.practiceIndex}`] = [];
-        state.practiceShowAnswer = false;
+        clearPracticeItem(state.practiceIndex);
         state.feedback = "";
         render();
       }
       if (action === "practice-answer") {
-        state.practiceShowAnswer = !state.practiceShowAnswer;
-        state.feedback = state.practiceShowAnswer ? "Answer is showing." : "";
+        if (state.practiceShowAnswer) {
+          clearPracticeItem(state.practiceIndex);
+          state.feedback = "";
+        } else {
+          const key = `practice:${state.practiceIndex}`;
+          state.foundByStep[key] = [];
+          state.revealedByStep[key] = [];
+          state.practiceShowAnswer = true;
+          state.feedback = "Answer is showing.";
+        }
         render();
       }
       if (action === "practice-next") {
+        clearPracticeItem(state.practiceIndex);
         state.practiceIndex = (state.practiceIndex + 1) % PRACTICE.length;
-        state.practiceShowAnswer = false;
+        clearPracticeItem(state.practiceIndex);
         state.feedback = "";
         render();
       }
@@ -2780,7 +3950,8 @@
         render();
       }
       if (action === "go-needed-lesson") {
-        state.view = "learn";
+        clearAllTransient();
+        state.view = "lessons";
         state.lessonIndex = nextIncompleteLessonIndex();
         state.stepIndex = 0;
         state.lessonMode = "demo";
@@ -2788,7 +3959,40 @@
         render();
         scrollStageIntoView();
       }
+      if (action === "play-new") {
+        clearBotMove();
+        state.play = newPlayState();
+        render();
+      }
+      if (action === "play-coach-toggle") {
+        const play = ensurePlayState();
+        play.coachOn = !play.coachOn;
+        play.askMode = false;
+        play.coachMessage = "";
+        play.hintSquares = [];
+        render();
+      }
+      if (action === "play-hint") {
+        const play = ensurePlayState();
+        applyCoachHint(play);
+        render();
+      }
+      if (action === "play-ask") {
+        const play = ensurePlayState();
+        play.askMode = !play.askMode;
+        play.hintSquares = [];
+        play.coachMessage = play.askMode
+          ? "Tap any piece to ask what it does."
+          : "Move mode is back on.";
+        render();
+      }
+      if (action === "promote-choice") {
+        const play = ensurePlayState();
+        const move = play.pendingPromotion;
+        if (move) completePlayMove(move, actionButton.dataset.pieceChoice || "queen");
+      }
       if (action === "reset-progress") {
+        clearBotMove();
         state = { ...defaultState };
         localStorage.removeItem(STORAGE_KEY);
         render();
@@ -2797,8 +4001,17 @@
 
     window.__GIRL_CHESS_TESTS__ = {
       legalDestinations,
-      validateCurriculumTargets
+      legalGameMovesForSquare,
+      allLegalGameMoves,
+      validateCurriculumTargets,
+      validateGameLegality
     };
+
+    window.setInterval(() => {
+      if (state.view !== "legend" || !stage) return;
+      state.legendPhase += 1;
+      renderLegendView();
+    }, 1200);
 
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
