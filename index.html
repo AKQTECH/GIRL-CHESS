@@ -882,6 +882,40 @@
       gap: 6px;
     }
 
+    .recovery-list {
+      display: grid;
+      gap: 7px;
+      max-height: min(420px, 55vh);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-right: 2px;
+    }
+
+    .recovery-lesson {
+      display: grid;
+      grid-template-columns: 1fr minmax(88px, auto);
+      gap: 8px;
+      align-items: center;
+      padding: 8px;
+      border: 2px solid var(--line-soft);
+      background: var(--white);
+    }
+
+    .recovery-title {
+      display: block;
+      font-family: "Silkscreen", monospace;
+      font-size: 10px;
+      line-height: 1.2;
+      text-transform: lowercase;
+    }
+
+    .recovery-state {
+      display: block;
+      margin-top: 3px;
+      font-size: 13px;
+      line-height: 1.25;
+    }
+
     .about-footer .small-button,
     .about-footer .primary-button {
       min-height: 38px;
@@ -1056,7 +1090,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "Girl Chess v3.3";
+    const APP_VERSION = "Girl Chess v3.4";
     const STORAGE_KEY = "girl-chess-progress-v1";
     const DIFFICULTIES = ["easy", "normal", "hard"];
     const WIN_UPGRADE_TARGET = 2;
@@ -3189,6 +3223,7 @@
       winsByDifficulty: { easy: 0, normal: 0, hard: 0 },
       upgradePrompt: false,
       resetConfirm: false,
+      aboutOpenPanel: "",
       play: null
     };
 
@@ -3232,6 +3267,7 @@
           next.lessonMode = "complete";
         }
         next.resetConfirm = false;
+        next.aboutOpenPanel = "";
         if (next.play) next.play.busy = false;
         return next;
       } catch (error) {
@@ -3249,6 +3285,7 @@
         practiceShowAnswer,
         legendPhase,
         resetConfirm,
+        aboutOpenPanel,
         ...persisted
       } = state;
       if (persisted.play) {
@@ -3692,6 +3729,37 @@
       `;
     }
 
+    function renderLessonRecovery() {
+      const completed = LESSONS.filter(lesson => state.completedLessons[lesson.id]).length;
+      return `
+        <details class="about-subpanel" data-panel="lesson-recovery" ${state.aboutOpenPanel === "lesson-recovery" ? "open" : ""}>
+          <summary>lesson recovery</summary>
+          <p>If your saved progress disappears, mark what you already finished. You can still repeat any completed lesson from the Lessons tab.</p>
+          <p>${completed}/${LESSONS.length} lessons marked done.</p>
+          <div class="action-row">
+            <button class="primary-button" type="button" data-action="mark-all-lessons-complete">mark all done</button>
+            <button class="small-button" type="button" data-action="review-lessons">review lessons</button>
+          </div>
+          <div class="recovery-list">
+            ${LESSONS.map((lesson, index) => {
+              const done = Boolean(state.completedLessons[lesson.id]);
+              return `
+                <div class="recovery-lesson">
+                  <span>
+                    <span class="recovery-title">${String(index + 1).padStart(2, "0")} ${escapeHTML(lesson.title)}</span>
+                    <span class="recovery-state">${done ? "marked done" : "not marked done"}</span>
+                  </span>
+                  <button class="${done ? "primary-button" : "small-button"}" type="button" data-action="toggle-lesson-complete" data-lesson-id="${escapeHTML(lesson.id)}" aria-pressed="${done}">
+                    ${done ? "done" : "mark done"}
+                  </button>
+                </div>
+              `;
+            }).join("")}
+          </div>
+        </details>
+      `;
+    }
+
     function renderAboutPanel() {
       const wins = (state.winsByDifficulty && state.winsByDifficulty[state.difficulty]) || 0;
       return `
@@ -3701,7 +3769,8 @@
             <p>Current: ${escapeHTML(state.difficulty)} (${escapeHTML(difficultyCopy())}). Wins here: ${wins}/${WIN_UPGRADE_TARGET}.</p>
             ${renderDifficultyButtons()}
           </section>
-          <details class="about-subpanel">
+          ${renderLessonRecovery()}
+          <details class="about-subpanel" data-panel="reset-options" ${state.aboutOpenPanel === "reset-options" ? "open" : ""}>
             <summary>reset options</summary>
             <p>This erases lesson progress, practice progress, difficulty, and the current game on this device.</p>
             <button class="small-button" type="button" data-action="reset-progress">
@@ -4015,7 +4084,8 @@
             <p class="eyebrow">next</p>
             <h2 class="micro-title">choose what to do</h2>
             <p class="micro-body">Practice asks tiny questions. Play starts a real game.</p>
-            <div class="action-row">
+            <div class="action-row three">
+              <button class="small-button" type="button" data-action="review-lessons">review</button>
               <button class="primary-button" type="button" data-action="go-practice">practice</button>
               <button class="small-button" type="button" data-action="go-play">play</button>
             </div>
@@ -4612,7 +4682,9 @@
         clearHintFlash();
         clearAllTransient();
         state.view = viewButton.dataset.view;
-        if (state.view === "lessons") state.lessonMode = state.lessonMode || "demo";
+        if (state.view === "lessons") {
+          state.lessonMode = state.lessonMode === "complete" ? "demo" : state.lessonMode || "demo";
+        }
         if (state.view === "practice") clearPracticeItem(state.practiceIndex);
         if (state.view === "play") ensurePlayState();
         state.feedback = "";
@@ -4645,6 +4717,7 @@
         clearAllTransient();
         clearHintFlash();
         state.view = "about";
+        state.aboutOpenPanel = "";
         state.feedback = "";
         render();
       }
@@ -4712,6 +4785,40 @@
         state.view = "play";
         ensurePlayState();
         render();
+      }
+      if (action === "review-lessons") {
+        clearAllTransient();
+        clearHintFlash();
+        state.view = "lessons";
+        state.lessonIndex = Math.min(state.lessonIndex || 0, LESSONS.length - 1);
+        state.stepIndex = 0;
+        state.lessonMode = "demo";
+        state.feedback = "";
+        render();
+        scrollStageIntoView();
+      }
+      if (action === "mark-all-lessons-complete") {
+        LESSONS.forEach(lesson => {
+          state.completedLessons[lesson.id] = true;
+        });
+        state.lessonMode = state.view === "lessons" ? "complete" : state.lessonMode;
+        state.aboutOpenPanel = "lesson-recovery";
+        state.feedback = "Lessons marked done.";
+        render();
+      }
+      if (action === "toggle-lesson-complete") {
+        const lessonId = actionButton.dataset.lessonId;
+        if (LESSONS.some(lesson => lesson.id === lessonId)) {
+          if (state.completedLessons[lessonId]) {
+            delete state.completedLessons[lessonId];
+            if (state.lessonMode === "complete") state.lessonMode = "demo";
+          } else {
+            state.completedLessons[lessonId] = true;
+          }
+          state.aboutOpenPanel = "lesson-recovery";
+          state.feedback = "Lesson recovery updated.";
+          render();
+        }
       }
       if (action === "set-difficulty") {
         const level = actionButton.dataset.difficulty;
@@ -4783,6 +4890,7 @@
       if (action === "reset-progress") {
         if (!state.resetConfirm) {
           state.resetConfirm = true;
+          state.aboutOpenPanel = "reset-options";
           render();
           return;
         }
