@@ -247,7 +247,7 @@
       display: grid;
       place-items: center;
       border: 2px solid transparent;
-      color: var(--pink-5);
+      color: var(--pink-3);
       font-family: "Silkscreen", monospace;
       font-size: 16px;
       line-height: 1;
@@ -555,9 +555,9 @@
       font-family: "Arial Unicode MS", "Apple Symbols", "Noto Sans Symbols 2", "Times New Roman", serif;
       font-size: clamp(18px, 72cqw, 52px);
       font-weight: 900;
-      line-height: 0.92;
+      line-height: 1;
       pointer-events: none;
-      transform: scale(0.94);
+      transform: translateY(-3%) scale(0.92);
       text-shadow:
         -0.55px -0.55px 0 rgba(21, 16, 21, 0.75),
         0.55px -0.55px 0 rgba(21, 16, 21, 0.75),
@@ -844,14 +844,47 @@
       cursor: pointer;
     }
 
+    .footer-about-button {
+      min-height: 34px;
+      display: inline-flex;
+      align-items: center;
+      border: 0;
+      background: transparent;
+      padding: 0 10px 0 0;
+      font-family: "Silkscreen", monospace;
+      font-size: 10px;
+      text-transform: lowercase;
+      cursor: pointer;
+    }
+
     .about-footer p {
       margin: 6px 0;
       line-height: 1.35;
     }
 
-    .about-footer .small-button {
+    .about-panel {
+      display: grid;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .about-subpanel {
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      border: 2px solid var(--line-soft);
+      background: rgba(255, 250, 253, 0.78);
+    }
+
+    .difficulty-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .about-footer .small-button,
+    .about-footer .primary-button {
       min-height: 38px;
-      width: min(220px, 100%);
       font-size: 10px;
     }
 
@@ -1018,18 +1051,15 @@
 
     <main class="layout" id="layout"></main>
     <footer class="about-footer">
-      <details>
-        <summary>about</summary>
-        <p class="version">Girl Chess v3.2<br>Built for April Korto Quioh</p>
-        <p>Progress saves on this device.</p>
-        <button class="small-button" type="button" data-action="reset-progress">reset progress</button>
-      </details>
+      <button class="footer-about-button" type="button" data-action="open-about">about</button>
     </footer>
   </div>
 
   <script>
-    const APP_VERSION = "Girl Chess v3.2";
+    const APP_VERSION = "Girl Chess v3.3";
     const STORAGE_KEY = "girl-chess-progress-v1";
+    const DIFFICULTIES = ["easy", "normal", "hard"];
+    const WIN_UPGRADE_TARGET = 2;
     const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
     const RANKS = [8, 7, 6, 5, 4, 3, 2, 1];
 
@@ -1799,13 +1829,18 @@
     function chooseBotMove(play) {
       const moves = allLegalGameMoves(play, "dark");
       if (!moves.length) return null;
-      return [...moves].sort((a, b) => {
-        const aCapture = PIECE_VALUES[a.capture] || 0;
-        const bCapture = PIECE_VALUES[b.capture] || 0;
-        const aRisk = isSquareAttacked(applyGameMoveSnapshot(play, a, "queen", false).position, a.to, "soft") ? PIECE_VALUES[a.piece] : 0;
-        const bRisk = isSquareAttacked(applyGameMoveSnapshot(play, b, "queen", false).position, b.to, "soft") ? PIECE_VALUES[b.piece] : 0;
-        return (bCapture - bRisk + Math.random() * 0.1) - (aCapture - aRisk + Math.random() * 0.1);
-      }).at(-1);
+      const scored = moves.map(move => {
+        const aCapture = PIECE_VALUES[move.capture] || 0;
+        const risk = isSquareAttacked(applyGameMoveSnapshot(play, move, "queen", false).position, move.to, "soft") ? PIECE_VALUES[move.piece] : 0;
+        return { move, score: aCapture - risk + Math.random() * 0.1 };
+      }).sort((a, b) => a.score - b.score);
+      if (state.difficulty === "hard") return scored.at(-1).move;
+      if (state.difficulty === "normal") {
+        const pool = scored.slice(Math.max(0, Math.floor(scored.length * 0.45)));
+        return pool[Math.floor(Math.random() * pool.length)].move;
+      }
+      const gentlePool = scored.slice(0, Math.max(1, Math.ceil(scored.length * 0.55)));
+      return gentlePool[Math.floor(Math.random() * gentlePool.length)].move;
     }
 
     function describePieceForCoach(play, square) {
@@ -2998,7 +3033,6 @@
         title: "checkmate demo",
         body: "Checkmate means the king is in danger and has no safe move left. That ends the game.",
         position: "mate",
-        moveMap: "queen",
         highlights: ["h8", "g8", "h7", "g7"]
       },
       castling: {
@@ -3026,7 +3060,6 @@
         title: "stalemate demo",
         body: "Just looking, nothing to get right yet: the dark king has no move, but it is not in check.",
         position: "stalemate",
-        moveMap: "queen",
         highlights: ["h8", "g8", "h7", "g7", "g6", "f7"]
       },
       "blocked-pieces": {
@@ -3152,6 +3185,10 @@
       practiceClean: true,
       practiceShowAnswer: false,
       practiceIndex: 0,
+      difficulty: "easy",
+      winsByDifficulty: { easy: 0, normal: 0, hard: 0 },
+      upgradePrompt: false,
+      resetConfirm: false,
       play: null
     };
 
@@ -3180,6 +3217,21 @@
         next.missCounts = {};
         next.feedback = "";
         next.practiceShowAnswer = false;
+        next.difficulty = DIFFICULTIES.includes(next.difficulty) ? next.difficulty : "easy";
+        next.winsByDifficulty = {
+          easy: 0,
+          normal: 0,
+          hard: 0,
+          ...(next.winsByDifficulty || {})
+        };
+        if (
+          LESSONS.every(lesson => next.completedLessons && next.completedLessons[lesson.id]) &&
+          next.lessonMode === "quiz" &&
+          next.lessonIndex >= LESSONS.length - 1
+        ) {
+          next.lessonMode = "complete";
+        }
+        next.resetConfirm = false;
         if (next.play) next.play.busy = false;
         return next;
       } catch (error) {
@@ -3196,6 +3248,7 @@
         feedback,
         practiceShowAnswer,
         legendPhase,
+        resetConfirm,
         ...persisted
       } = state;
       if (persisted.play) {
@@ -3599,6 +3652,87 @@
       return `${completed}/${LESSONS.length} done`;
     }
 
+    function nextDifficulty(level = state.difficulty) {
+      const index = DIFFICULTIES.indexOf(level);
+      return index >= 0 && index < DIFFICULTIES.length - 1 ? DIFFICULTIES[index + 1] : null;
+    }
+
+    function difficultyCopy(level = state.difficulty) {
+      const copy = {
+        easy: "gentle bot",
+        normal: "smarter bot",
+        hard: "least forgiving"
+      };
+      return copy[level] || copy.easy;
+    }
+
+    function recordSoftWin() {
+      const level = DIFFICULTIES.includes(state.difficulty) ? state.difficulty : "easy";
+      state.winsByDifficulty = {
+        easy: 0,
+        normal: 0,
+        hard: 0,
+        ...(state.winsByDifficulty || {})
+      };
+      state.winsByDifficulty[level] += 1;
+      if (nextDifficulty(level) && state.winsByDifficulty[level] >= WIN_UPGRADE_TARGET) {
+        state.upgradePrompt = true;
+      }
+    }
+
+    function renderDifficultyButtons() {
+      return `
+        <div class="difficulty-row">
+          ${DIFFICULTIES.map(level => `
+            <button class="${state.difficulty === level ? "primary-button" : "small-button"}" type="button" data-action="set-difficulty" data-difficulty="${level}" aria-pressed="${state.difficulty === level}">
+              ${level}
+            </button>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function renderAboutPanel() {
+      const wins = (state.winsByDifficulty && state.winsByDifficulty[state.difficulty]) || 0;
+      return `
+        <div class="about-panel">
+          <section class="about-subpanel">
+            <p class="eyebrow">difficulty</p>
+            <p>Current: ${escapeHTML(state.difficulty)} (${escapeHTML(difficultyCopy())}). Wins here: ${wins}/${WIN_UPGRADE_TARGET}.</p>
+            ${renderDifficultyButtons()}
+          </section>
+          <details class="about-subpanel">
+            <summary>reset options</summary>
+            <p>This erases lesson progress, practice progress, difficulty, and the current game on this device.</p>
+            <button class="small-button" type="button" data-action="reset-progress">
+              ${state.resetConfirm ? "confirm reset" : "reset progress"}
+            </button>
+          </details>
+        </div>
+      `;
+    }
+
+    function renderAboutFooter() {
+      const panel = document.getElementById("aboutPanel");
+      if (panel) panel.innerHTML = renderAboutPanel();
+    }
+
+    function renderUpgradeCard() {
+      const next = nextDifficulty();
+      if (!state.upgradePrompt || !next) return "";
+      return `
+        <section class="micro-card">
+          <p class="eyebrow">level up</p>
+          <h2 class="micro-title">try ${escapeHTML(next)}?</h2>
+          <p class="micro-body">You won ${WIN_UPGRADE_TARGET} games on ${escapeHTML(state.difficulty)}. You can make the bot harder now.</p>
+          <div class="action-row">
+            <button class="primary-button" type="button" data-action="upgrade-difficulty">upgrade</button>
+            <button class="small-button" type="button" data-action="dismiss-upgrade">later</button>
+          </div>
+        </section>
+      `;
+    }
+
     function allLessonsPassed() {
       return LESSONS.every(lesson => state.completedLessons[lesson.id]);
     }
@@ -3801,12 +3935,12 @@
 
     function simpleLegendLine(piece) {
       const lines = {
-        king: "This is the king. He takes one careful step.",
-        queen: "This is the queen. She moves straight or slanted on a clear road.",
-        rook: "This is the rook. It slides on straight roads.",
-        bishop: "This is the bishop. It slides on slanted roads.",
-        knight: "This is the knight. It hops in an L shape.",
-        pawn: "This is a pawn. It walks forward and takes one slanted step."
+        king: "This is your king. He takes one careful step.",
+        queen: "This is your queen. She moves straight or slanted on a clear road.",
+        rook: "This is your rook. It slides on straight roads.",
+        bishop: "This is your bishop. It slides on slanted roads.",
+        knight: "This is your knight. It hops in an L shape.",
+        pawn: "This is your pawn. It walks forward and takes one slanted step."
       };
       return lines[piece.id] || `This is the ${piece.name}. ${piece.move}`;
     }
@@ -3820,7 +3954,6 @@
             <p class="eyebrow">${escapeHTML(piece.name)}</p>
             <div class="legend-piece-pair">
               <span class="legend-piece-sample soft" aria-hidden="true">${piece.symbol}</span>
-              <span class="legend-piece-sample dark" aria-hidden="true">${piece.symbol}</span>
             </div>
           </div>
           <div>
@@ -3863,6 +3996,33 @@
         : ((state.stepIndex + (stepReady ? 1 : 0)) / lesson.steps.length) * 100;
 
       stageLabel.textContent = lesson.label;
+      if (allLessonsPassed() && state.lessonMode === "complete") {
+        stageLabel.textContent = "lessons complete";
+        stage.innerHTML = `
+          <section class="macro-card">
+            <div>
+              <p class="eyebrow">lesson path</p>
+              <h2 class="macro-title">complete</h2>
+              <p class="plain-text">You finished the teaching path. Practice and Play are open now.</p>
+            </div>
+          </section>
+          ${renderBoard({
+            position: "start"
+          })}
+        `;
+        coach.innerHTML = `
+          <section class="micro-card">
+            <p class="eyebrow">next</p>
+            <h2 class="micro-title">choose what to do</h2>
+            <p class="micro-body">Practice asks tiny questions. Play starts a real game.</p>
+            <div class="action-row">
+              <button class="primary-button" type="button" data-action="go-practice">practice</button>
+              <button class="small-button" type="button" data-action="go-play">play</button>
+            </div>
+          </section>
+        `;
+        return;
+      }
       if (state.lessonMode === "demo") {
         stage.innerHTML = `
           <section class="macro-card">
@@ -3963,8 +4123,8 @@
         <section class="macro-card">
           <div>
             <p class="eyebrow">piece reference</p>
-            <h2 class="macro-title">what pieces are</h2>
-            <p class="plain-text">${state.legendAdvanced ? "Advanced legend is open: movement maps are showing." : "Start with the shape and one choreography line. Open advanced legend only when you want more."}</p>
+            <h2 class="macro-title">your pieces</h2>
+            <p class="plain-text">${state.legendAdvanced ? "Advanced legend is open: movement maps are showing for your soft pink pieces." : "Start with your soft pink shapes and one choreography line. Open advanced legend only when you want more."}</p>
           </div>
           <button class="focus-toggle" type="button" aria-pressed="${state.legendAdvanced}" data-action="advanced-legend">
             ${state.legendAdvanced ? "advanced legend on" : "advanced legend"}
@@ -4052,11 +4212,7 @@
           <p class="plain-text">The app teaches in two layers: the whole idea first, then one small action at a time.</p>
           <p class="version">${APP_VERSION}<br>Built for April Korto Quioh</p>
         </section>
-        <section class="about-card">
-          <p class="eyebrow">storage</p>
-          <p class="micro-body">Progress saves on this device.</p>
-          <button class="small-button" type="button" data-action="reset-progress">reset progress</button>
-        </section>
+        ${renderAboutPanel()}
       `;
     }
 
@@ -4103,7 +4259,7 @@
       }
 
       const play = ensurePlayState();
-      layout.classList.toggle("coach-off", !play.coachOn);
+      layout.classList.toggle("coach-off", !play.coachOn && !play.result && !state.upgradePrompt);
       const selected = play.selected ? new Set([play.selected]) : new Set();
       const highlights = new Set(play.hintSquares || []);
       stageLabel.textContent = "play";
@@ -4123,18 +4279,27 @@
           selected,
           legal: [],
           highlights,
-          lastMove: play.lastMove || []
+          lastMove: []
         })}
         ${play.pendingPromotion ? renderPromotionChooser() : ""}
       `;
 
-      if (!play.coachOn) {
+      if (!play.coachOn && !play.result && !state.upgradePrompt) {
         coach.innerHTML = "";
         return;
       }
 
       coach.innerHTML = `
-        <section class="micro-card">
+        ${renderUpgradeCard()}
+        ${play.result ? `
+          <section class="micro-card">
+            <p class="eyebrow">game over</p>
+            <h2 class="micro-title">${play.result === "soft" ? "you won" : play.result === "bot" ? "bot won" : "draw"}</h2>
+            <p class="micro-body">${escapeHTML(play.status)}</p>
+            <button class="primary-button" type="button" data-action="play-new">new game</button>
+          </section>
+        ` : ""}
+        ${play.coachOn ? `<section class="micro-card">
           <p class="eyebrow">coach</p>
           <h2 class="micro-title">${play.askMode ? "ask mode on" : "on demand"}</h2>
           <p class="micro-body">${escapeHTML(play.coachMessage || "Use hints only when you want them. Ask mode lets you tap any piece to ask what it does.")}</p>
@@ -4148,12 +4313,12 @@
             </button>
             <button class="small-button" type="button" data-action="play-new">new game</button>
           </div>
-        </section>
+        </section>` : ""}
         ${play.pendingPromotion ? renderPromotionChooser() : ""}
-        <section class="micro-card">
+        ${play.coachOn ? `<section class="micro-card">
           <p class="eyebrow">tiny reminder</p>
           <p class="micro-body">Tap your piece first. Then pick the square you want. The board stays clean unless you ask for a hint.</p>
-        </section>
+        </section>` : ""}
       `;
     }
 
@@ -4184,6 +4349,7 @@
         setScaffold("single-panel-layout");
         renderAbout();
       }
+      renderAboutFooter();
       saveState();
     }
 
@@ -4216,6 +4382,7 @@
       state.play.message = move.castle
         ? "You castled. The king slid toward the rook, and the rook tucked beside him."
         : `You moved ${describeMove({ ...move, piece: promotionChoice === "queen" && move.piece === "pawn" && Number(move.to[1]) === 8 ? "queen" : move.piece })}.`;
+      if (state.play.result === "soft") recordSoftWin();
       render();
       queueBotMove();
     }
@@ -4321,8 +4488,9 @@
             state.feedback = "That is the answer. Reset this question and do it without showing the answer to pass.";
           } else {
             state.missCounts[key] = 0;
-            setRevealSet(answerFamilyForItem(step), key);
-            state.feedback = isStepReady(step, found) ? correctFeedback(step, square) : "Good. Find the next one.";
+            const ready = isStepReady(step, found);
+            setRevealSet(ready ? answerFamilyForItem(step) : [], key);
+            state.feedback = ready ? correctFeedback(step, square) : "Good. Find the next one.";
           }
           updateCompletedLesson();
         } else {
@@ -4342,8 +4510,9 @@
           found.add(square);
           setFoundSet(found, key);
           state.missCounts[key] = 0;
-          setRevealSet(answerFamilyForItem(item), key);
-          state.feedback = isStepReady(item, found) ? correctFeedback(item, square) : "Good. Keep going.";
+          const ready = isStepReady(item, found);
+          setRevealSet(ready ? answerFamilyForItem(item) : [], key);
+          state.feedback = ready ? correctFeedback(item, square) : "Good. Keep going.";
         } else {
           state.missCounts[key] = (state.missCounts[key] || 0) + 1;
           flashFeedback("No, not that one.", promptFor(item, "Tap the answer on the board."));
@@ -4400,6 +4569,7 @@
           state.lessonMode = "demo";
           state.feedback = "Next lesson loaded.";
         } else {
+          state.lessonMode = "complete";
           state.feedback = "Lesson path complete.";
         }
       }
@@ -4471,6 +4641,13 @@
         state.legendAdvanced = !state.legendAdvanced;
         render();
       }
+      if (action === "open-about") {
+        clearAllTransient();
+        clearHintFlash();
+        state.view = "about";
+        state.feedback = "";
+        render();
+      }
       if (action === "start-test") {
         state.lessonMode = "quiz";
         state.feedback = "";
@@ -4524,6 +4701,43 @@
         render();
         scrollStageIntoView();
       }
+      if (action === "go-practice") {
+        clearAllTransient();
+        state.view = "practice";
+        state.practiceIndex = 0;
+        render();
+      }
+      if (action === "go-play") {
+        clearAllTransient();
+        state.view = "play";
+        ensurePlayState();
+        render();
+      }
+      if (action === "set-difficulty") {
+        const level = actionButton.dataset.difficulty;
+        if (DIFFICULTIES.includes(level)) {
+          state.difficulty = level;
+          state.upgradePrompt = false;
+          state.resetConfirm = false;
+          render();
+        }
+      }
+      if (action === "upgrade-difficulty") {
+        const next = nextDifficulty();
+        if (next) {
+          clearBotMove();
+          clearHintFlash();
+          state.difficulty = next;
+          state.upgradePrompt = false;
+          state.play = newPlayState();
+          state.view = "play";
+          render();
+        }
+      }
+      if (action === "dismiss-upgrade") {
+        state.upgradePrompt = false;
+        render();
+      }
       if (action === "play-new") {
         clearBotMove();
         clearHintFlash();
@@ -4567,10 +4781,24 @@
         if (move) completePlayMove(move, actionButton.dataset.pieceChoice || "queen");
       }
       if (action === "reset-progress") {
+        if (!state.resetConfirm) {
+          state.resetConfirm = true;
+          render();
+          return;
+        }
         clearBotMove();
         clearHintFlash();
-        state = { ...defaultState };
         localStorage.removeItem(STORAGE_KEY);
+        state = {
+          ...defaultState,
+          completedLessons: {},
+          foundByStep: {},
+          answerShownByStep: {},
+          revealedByStep: {},
+          missCounts: {},
+          winsByDifficulty: { easy: 0, normal: 0, hard: 0 },
+          play: null
+        };
         render();
       }
     });
