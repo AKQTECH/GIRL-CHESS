@@ -923,9 +923,32 @@
     }
 
     .play-controls,
-    .promotion-row {
+    .promotion-row,
+    .mode-switch,
+    .drill-options {
       display: grid;
       gap: 8px;
+    }
+
+    .mode-card {
+      padding: 10px;
+      border: 2px solid var(--line-soft);
+      background: var(--pink-1);
+    }
+
+    .mode-switch,
+    .drill-options {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .drill-options {
+      margin-top: 8px;
+    }
+
+    .drill-note {
+      margin: 8px 0 0;
+      font-size: 15px;
+      line-height: 1.4;
     }
 
     .promotion-row {
@@ -1090,10 +1113,29 @@
   </div>
 
   <script>
-    const APP_VERSION = "Girl Chess v3.4";
+    const APP_VERSION = "Girl Chess v3.5";
     const STORAGE_KEY = "girl-chess-progress-v1";
     const DIFFICULTIES = ["easy", "normal", "hard"];
     const WIN_UPGRADE_TARGET = 2;
+    const PLAY_MODES = ["real", "drill"];
+    const DRILL_TYPES = {
+      rook: {
+        label: "king + two rooks",
+        short: "two rooks",
+        title: "hold the doors",
+        intro: "The rooks trade off holding the door. One rook checks, the king backs away, then the other rook takes the next row.",
+        hint: "Ladder idea: one rook checks. The other rook waits behind it.",
+        stale: "That last rook move sealed the king's last square without checking it. That is the exact thing this drill is for. Try again: let the rook give check while the other rook holds the door."
+      },
+      queen: {
+        label: "king + queen",
+        short: "queen",
+        title: "shrink the box",
+        intro: "The queen makes the dark king's box smaller. Keep her a knight's-move away while your king walks in to help.",
+        hint: "Box idea: the queen shrinks space. A knight's-move away is safer than touching the king.",
+        stale: "That last queen move took away the king's last square without checking it. That is the stalemate shape. Try again: keep the queen a knight's-move away until your king helps."
+      }
+    };
     const FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
     const RANKS = [8, 7, 6, 5, 4, 3, 2, 1];
 
@@ -1582,6 +1624,14 @@
         hintSquares: [],
         pendingPromotion: null,
         lastMove: [move.from, move.to],
+        lastMoveDetail: {
+          from: move.from,
+          to: move.to,
+          piece: move.piece,
+          side: move.side,
+          capture: move.capture || null,
+          castle: move.castle || null
+        },
         coachMessage: "",
         message: ""
       };
@@ -1648,6 +1698,168 @@
       return false;
     }
 
+    function allBoardSquares() {
+      return FILES.flatMap(file => RANKS.map(rank => `${file}${rank}`));
+    }
+
+    function squareIsEdge(square) {
+      const { fileIndex, rank } = squareParts(square);
+      return fileIndex === 0 || fileIndex === 7 || rank === 1 || rank === 8;
+    }
+
+    function kingGap(fromSquare, toSquare) {
+      const gap = distanceFrom(fromSquare, toSquare);
+      return Math.max(gap.file, gap.rank);
+    }
+
+    function isKnightGap(fromSquare, toSquare) {
+      const gap = distanceFrom(fromSquare, toSquare);
+      return (gap.file === 1 && gap.rank === 2) || (gap.file === 2 && gap.rank === 1);
+    }
+
+    function centerScore(square) {
+      const { fileIndex, rank } = squareParts(square);
+      return 4 - Math.max(Math.abs(fileIndex - 3.5), Math.abs(rank - 4.5));
+    }
+
+    function drillCastleRights() {
+      return {
+        soft: { king: false, queen: false },
+        dark: { king: false, queen: false }
+      };
+    }
+
+    function randomSquare(used, filter = () => true) {
+      const candidates = allBoardSquares().filter(square => !used.has(square) && filter(square));
+      if (!candidates.length) return null;
+      return candidates[Math.floor(Math.random() * candidates.length)];
+    }
+
+    function drillBasePlay(position, turn = "soft", extras = {}) {
+      return {
+        position: clonePosition(position),
+        turn,
+        selected: null,
+        legal: [],
+        lastMove: [],
+        lastMoveDetail: null,
+        castleRights: drillCastleRights(),
+        enPassantTarget: null,
+        result: null,
+        status: "",
+        message: "",
+        coachOn: false,
+        askMode: false,
+        hintLevel: 0,
+        hintSquares: [],
+        coachMessage: "",
+        busy: false,
+        pendingPromotion: null,
+        ...extras
+      };
+    }
+
+    function isValidDrillPosition(position, drillType) {
+      const squares = position.map(piece => piece.square);
+      if (new Set(squares).size !== squares.length) return false;
+      const darkPieces = position.filter(piece => piece.side === "dark");
+      const softKing = position.find(piece => piece.side === "soft" && piece.piece === "king");
+      const darkKing = position.find(piece => piece.side === "dark" && piece.piece === "king");
+      if (!softKing || !darkKing || darkPieces.length !== 1) return false;
+      if (squareIsEdge(darkKing.square)) return false;
+      if (kingGap(softKing.square, darkKing.square) <= 1) return false;
+      if (isKingInCheck(position, "soft") || isKingInCheck(position, "dark")) return false;
+
+      const softPieces = position.filter(piece => piece.side === "soft" && piece.piece !== "king");
+      if (drillType === "rook" && (softPieces.length !== 2 || softPieces.some(piece => piece.piece !== "rook"))) return false;
+      if (drillType === "queen" && (softPieces.length !== 1 || softPieces[0].piece !== "queen")) return false;
+
+      const play = drillBasePlay(position, "soft", { playMode: "real" });
+      const checked = updatePlayStatus(play);
+      if (checked.result) return false;
+      if (!allLegalGameMoves(play, "soft").length) return false;
+      if (!allLegalGameMoves({ ...play, turn: "dark" }, "dark").length) return false;
+      return true;
+    }
+
+    function generateDrillPosition(drillType = "rook") {
+      const type = DRILL_TYPES[drillType] ? drillType : "rook";
+      const fallback = type === "rook"
+        ? [p("a1", "king", "soft"), p("a8", "rook", "soft"), p("h1", "rook", "soft"), p("d5", "king", "dark")]
+        : [p("a1", "king", "soft"), p("h2", "queen", "soft"), p("d5", "king", "dark")];
+
+      for (let attempt = 0; attempt < 900; attempt += 1) {
+        const used = new Set();
+        const darkKing = randomSquare(used, square => !squareIsEdge(square));
+        if (!darkKing) break;
+        used.add(darkKing);
+        const softKing = randomSquare(used, square => kingGap(square, darkKing) >= 3);
+        if (!softKing) continue;
+        used.add(softKing);
+
+        const pieces = [p(softKing, "king", "soft")];
+        if (type === "rook") {
+          const rookA = randomSquare(used, square => kingGap(square, darkKing) > 1);
+          if (!rookA) continue;
+          used.add(rookA);
+          const rookB = randomSquare(used, square => kingGap(square, darkKing) > 1);
+          if (!rookB) continue;
+          pieces.push(p(rookA, "rook", "soft"), p(rookB, "rook", "soft"));
+        } else {
+          const queen = randomSquare(used, square => kingGap(square, darkKing) > 1);
+          if (!queen) continue;
+          pieces.push(p(queen, "queen", "soft"));
+        }
+        pieces.push(p(darkKing, "king", "dark"));
+        if (isValidDrillPosition(pieces, type)) return pieces;
+      }
+      return clonePosition(fallback);
+    }
+
+    function newDrillPlayState(drillType = "rook") {
+      const type = DRILL_TYPES[drillType] ? drillType : "rook";
+      return updatePlayStatus(drillBasePlay(generateDrillPosition(type), "soft", {
+        playMode: "drill",
+        drillType: type,
+        status: "Your move. Pick a soft pink piece.",
+        message: "Start the drill. Pick a soft pink piece."
+      }));
+    }
+
+    function drillTypeForStalemate(position) {
+      const softQueens = position.filter(piece => piece.side === "soft" && piece.piece === "queen").length;
+      const softRooks = position.filter(piece => piece.side === "soft" && piece.piece === "rook").length;
+      if (softQueens) return "queen";
+      if (softRooks >= 2) return "rook";
+      return "queen";
+    }
+
+    function drillStalemateStatus(play) {
+      const type = DRILL_TYPES[play.drillType] ? play.drillType : "queen";
+      const detail = play.lastMoveDetail || {};
+      const pieceName = detail.piece && PIECE_BY_ID[detail.piece] ? PIECE_BY_ID[detail.piece].name : "piece";
+      const moveText = detail.from && detail.to ? ` from ${detail.from} to ${detail.to}` : "";
+      if (type === "rook") {
+        return `Stalemate. That last ${pieceName} move${moveText} sealed the king's last square without checking it. Try again: one rook gives check while the other rook holds the door.`;
+      }
+      return `Stalemate. That last ${pieceName} move${moveText} took away the king's last square without checking it. Try again: keep the queen a knight's-move away until your king helps.`;
+    }
+
+    function validateDrillPositions(samples = 16) {
+      const checked = {};
+      Object.keys(DRILL_TYPES).forEach(type => {
+        checked[type] = 0;
+        for (let index = 0; index < samples; index += 1) {
+          const position = generateDrillPosition(type);
+          if (!isValidDrillPosition(position, type)) {
+            throw new Error(`Bad ${type} drill position: ${JSON.stringify(position)}`);
+          }
+          checked[type] += 1;
+        }
+      });
+      return checked;
+    }
+
     function updatePlayStatus(play) {
       const next = { ...play };
       const legalMoves = allLegalGameMoves(next, next.turn);
@@ -1665,7 +1877,10 @@
             : "Checkmate. You trapped the dark pink king.";
         } else {
           next.result = "draw";
-          next.status = "Stalemate. This is a draw: the king is not in danger, but has no legal move. Checkmate is different: the king is in danger and has no legal move. To make checkmate instead, the last move would need to attack the king while covering every escape square.";
+          next.status = next.playMode === "drill"
+            ? drillStalemateStatus(next)
+            : "Stalemate. This is a draw: the king is not in danger, but has no legal move. Checkmate is different: the king is in danger and has no legal move. To make checkmate instead, the last move would need to attack the king while covering every escape square.";
+          if (next.playMode === "drill") next.coachMessage = next.status;
         }
         return next;
       }
@@ -1680,13 +1895,15 @@
       return next;
     }
 
-    function newPlayState() {
+    function newPlayState(mode = "real", drillType = "rook") {
+      if (mode === "drill") return newDrillPlayState(drillType);
       return updatePlayStatus({
         position: clonePosition(STARTING_POSITION),
         turn: "soft",
         selected: null,
         legal: [],
         lastMove: [],
+        lastMoveDetail: null,
         castleRights: {
           soft: { king: true, queen: true },
           dark: { king: true, queen: true }
@@ -1701,14 +1918,26 @@
         hintSquares: [],
         coachMessage: "",
         busy: false,
-        pendingPromotion: null
+        pendingPromotion: null,
+        playMode: "real",
+        drillType: null
       });
     }
 
     function ensurePlayState() {
-      if (!state.play || !Array.isArray(state.play.position)) state.play = newPlayState();
+      const mode = PLAY_MODES.includes(state.playMode) ? state.playMode : "real";
+      const drillType = DRILL_TYPES[state.drillType] ? state.drillType : "rook";
+      if (
+        !state.play ||
+        !Array.isArray(state.play.position) ||
+        (mode === "real" && (state.play.playMode || "real") !== "real") ||
+        (mode === "drill" && (state.play.playMode !== "drill" || state.play.drillType !== drillType))
+      ) {
+        state.play = newPlayState(mode, drillType);
+      }
+      const base = newPlayState(mode, drillType);
       state.play = {
-        ...newPlayState(),
+        ...base,
         ...state.play,
         position: clonePosition(state.play.position),
         castleRights: cloneCastleRights(state.play.castleRights || {
@@ -1837,20 +2066,62 @@
       })[0];
     }
 
+    function suggestDrillMove(play) {
+      const moves = allLegalGameMoves(play, "soft");
+      if (!moves.length) return null;
+      return [...moves].sort((a, b) => scoreDrillMove(play, b) - scoreDrillMove(play, a))[0];
+    }
+
+    function scoreDrillMove(play, move) {
+      const after = applyGameMoveSnapshot(play, move, "queen", true);
+      const darkKing = after.position.find(piece => piece.side === "dark" && piece.piece === "king");
+      let score = 0;
+      if (after.result === "soft") score += 1000;
+      if (after.result === "draw") score -= 900;
+      if (isKingInCheck(after.position, "dark")) score += 160;
+      score += Math.max(0, 10 - allLegalGameMoves(after, "dark").length) * 6;
+      if (darkKing && squareIsEdge(darkKing.square)) score += 35;
+      if (play.drillType === "rook" && move.piece === "rook" && isKingInCheck(after.position, "dark")) score += 80;
+      if (play.drillType === "queen" && move.piece === "queen" && darkKing) {
+        if (isKnightGap(move.to, darkKing.square)) score += 90;
+        if (kingGap(move.to, darkKing.square) <= 1) score -= 160;
+      }
+      return score + Math.random() * 0.01;
+    }
+
+    function validatedCoachSuggestion(play, suggestion) {
+      if (!suggestion || !suggestion.from || !suggestion.to) return null;
+      const legal = legalGameMovesForSquare(play, suggestion.from).find(move => move.to === suggestion.to);
+      return legal || null;
+    }
+
+    function enemyKingIsNearlyBoxed(play) {
+      const darkKing = play.position.find(piece => piece.side === "dark" && piece.piece === "king");
+      if (!darkKing) return false;
+      return squareIsEdge(darkKing.square) || allLegalGameMoves({ ...play, turn: "dark" }, "dark").length <= 2;
+    }
+
     function applyCoachHint(play) {
-      const suggestion = suggestCoachMove(play);
+      const rawSuggestion = play.playMode === "drill" ? suggestDrillMove(play) : suggestCoachMove(play);
+      const suggestion = validatedCoachSuggestion(play, rawSuggestion);
       if (!suggestion) {
-        play.coachMessage = "No hint right now. The game may already be over.";
+        play.coachMessage = "No clear hint right now. Try any legal move, or start fresh.";
         return [];
       }
       play.hintLevel = Math.min(3, (play.hintLevel || 0) + 1);
       play.hintSquares = [];
       if (play.hintLevel === 1) {
-        play.coachMessage = isKingInCheck(play.position, "soft")
-          ? "Idea: your king is in danger, so first make the king safe."
-          : suggestion.capture
-            ? "Idea: one of your pieces can take something."
-            : "Idea: look for one piece with a clear road.";
+        if (play.playMode === "drill" && enemyKingIsNearlyBoxed(play)) {
+          play.coachMessage = "Habit check: after this move, does their king have a square to go to, or am I checking it right now?";
+        } else if (play.playMode === "drill") {
+          play.coachMessage = DRILL_TYPES[play.drillType] ? DRILL_TYPES[play.drillType].hint : "Idea: make the king's space smaller without stalemating.";
+        } else {
+          play.coachMessage = isKingInCheck(play.position, "soft")
+            ? "Idea: your king is in danger, so first make the king safe."
+            : suggestion.capture
+              ? "Idea: one of your pieces can take something."
+              : "Idea: look for one piece with a clear road.";
+        }
       } else if (play.hintLevel === 2) {
         play.coachMessage = `Look at the ${PIECE_BY_ID[suggestion.piece].name} on ${suggestion.from}.`;
       } else {
@@ -1858,6 +2129,20 @@
         return [suggestion.from, suggestion.to];
       }
       return [];
+    }
+
+    function chooseDrillBotMove(play) {
+      const moves = allLegalGameMoves(play, "dark");
+      if (!moves.length) return null;
+      const scored = moves.map(move => {
+        const after = applyGameMoveSnapshot(play, move, "queen", false);
+        const darkKing = pieceAtSquare(after.position, move.to);
+        const legalSpace = allLegalGameMoves({ ...after, turn: "dark" }, "dark").length;
+        const edgePenalty = squareIsEdge(move.to) ? -6 : 0;
+        const center = darkKing ? centerScore(darkKing.square) : 0;
+        return { move, score: legalSpace * 2 + center + edgePenalty + Math.random() * 0.1 };
+      }).sort((a, b) => b.score - a.score);
+      return scored[0].move;
     }
 
     function chooseBotMove(play) {
@@ -3222,6 +3507,8 @@
       difficulty: "easy",
       winsByDifficulty: { easy: 0, normal: 0, hard: 0 },
       upgradePrompt: false,
+      playMode: "real",
+      drillType: "rook",
       resetConfirm: false,
       aboutOpenPanel: "",
       play: null
@@ -3253,6 +3540,8 @@
         next.feedback = "";
         next.practiceShowAnswer = false;
         next.difficulty = DIFFICULTIES.includes(next.difficulty) ? next.difficulty : "easy";
+        next.playMode = PLAY_MODES.includes(next.playMode) ? next.playMode : "real";
+        next.drillType = DRILL_TYPES[next.drillType] ? next.drillType : "rook";
         next.winsByDifficulty = {
           easy: 0,
           normal: 0,
@@ -3381,7 +3670,14 @@
     function startHintFlash(squares, options = {}) {
       clearHintFlash();
       const play = ensurePlayState();
-      play.hintSquares = squares;
+      const flashSquares = (squares || []).filter(square => /^[a-h][1-8]$/.test(square));
+      if (flashSquares.length < 2) {
+        play.coachMessage = "I could not flash a safe move right now. Try a move, or start fresh.";
+        play.hintSquares = [];
+        render();
+        return;
+      }
+      play.hintSquares = flashSquares;
       const flashMessage = options.flashMessage || play.coachMessage;
       render();
       hintFlashTimer = window.setTimeout(() => {
@@ -3800,6 +4096,57 @@
           </div>
         </section>
       `;
+    }
+
+    function renderPlayModeControls(play) {
+      const mode = play.playMode || state.playMode || "real";
+      const drillType = play.drillType || state.drillType || "rook";
+      const drill = DRILL_TYPES[drillType] || DRILL_TYPES.rook;
+      return `
+        <section class="mode-card" aria-label="Play mode">
+          <div class="mode-switch">
+            <button class="${mode === "real" ? "primary-button" : "small-button"}" type="button" data-action="set-play-mode" data-play-mode="real" aria-pressed="${mode === "real"}">
+              real game
+            </button>
+            <button class="${mode === "drill" ? "primary-button" : "small-button"}" type="button" data-action="set-play-mode" data-play-mode="drill" aria-pressed="${mode === "drill"}">
+              mating drills
+            </button>
+          </div>
+          ${mode === "drill" ? `
+            <div class="drill-options">
+              ${Object.entries(DRILL_TYPES).map(([type, drill]) => `
+                <button class="${drillType === type ? "primary-button" : "small-button"}" type="button" data-action="set-drill-type" data-drill-type="${type}" aria-pressed="${drillType === type}">
+                  ${escapeHTML(drill.short)}
+                </button>
+              `).join("")}
+            </div>
+            <p class="drill-note">${escapeHTML(drill.intro)}</p>
+          ` : ""}
+        </section>
+      `;
+    }
+
+    function renderDrillCoachCard(play) {
+      const drill = DRILL_TYPES[play.drillType] || DRILL_TYPES.rook;
+      return `
+        <section class="micro-card">
+          <p class="eyebrow">drill idea</p>
+          <h2 class="micro-title">${escapeHTML(drill.title)}</h2>
+          <p class="micro-body">${escapeHTML(drill.intro)}</p>
+          <div class="feedback" role="status">${escapeHTML(play.status)}</div>
+        </section>
+      `;
+    }
+
+    function isRealGameStalemate(play) {
+      return (play.playMode || "real") === "real" && play.result === "draw" && /^Stalemate\./.test(play.status || "");
+    }
+
+    function renderPracticeAvoidingButton(play) {
+      if (!isRealGameStalemate(play)) return "";
+      const type = drillTypeForStalemate(play.position);
+      const label = DRILL_TYPES[type] ? DRILL_TYPES[type].label : DRILL_TYPES.queen.label;
+      return `<button class="small-button" type="button" data-action="play-practice-stalemate">practice avoiding this: ${escapeHTML(label)}</button>`;
     }
 
     function allLessonsPassed() {
@@ -4329,21 +4676,25 @@
       }
 
       const play = ensurePlayState();
-      layout.classList.toggle("coach-off", !play.coachOn && !play.result && !state.upgradePrompt);
+      const mode = play.playMode || state.playMode || "real";
+      const isDrill = mode === "drill";
+      const drill = DRILL_TYPES[play.drillType] || DRILL_TYPES.rook;
+      layout.classList.toggle("coach-off", !isDrill && !play.coachOn && !play.result && !state.upgradePrompt);
       const selected = play.selected ? new Set([play.selected]) : new Set();
       const highlights = new Set(play.hintSquares || []);
       stageLabel.textContent = "play";
       stage.innerHTML = `
         <section class="macro-card">
           <div>
-            <p class="eyebrow">real game</p>
-            <h2 class="macro-title">${play.turn === "soft" ? "your move" : "bot move"}</h2>
+            <p class="eyebrow">${isDrill ? "mating drill" : "real game"}</p>
+            <h2 class="macro-title">${isDrill ? escapeHTML(drill.label) : play.turn === "soft" ? "your move" : "bot move"}</h2>
             <p class="plain-text">${escapeHTML(play.message || play.status)}</p>
           </div>
           <button class="focus-toggle" type="button" aria-pressed="${play.coachOn}" data-action="play-coach-toggle">
             ${play.coachOn ? "coach off" : "coach on"}
           </button>
         </section>
+        ${renderPlayModeControls(play)}
         ${renderBoard({
           positionItems: play.position,
           selected,
@@ -4354,19 +4705,23 @@
         ${play.pendingPromotion ? renderPromotionChooser() : ""}
       `;
 
-      if (!play.coachOn && !play.result && !state.upgradePrompt) {
+      if (!isDrill && !play.coachOn && !play.result && !state.upgradePrompt) {
         coach.innerHTML = "";
         return;
       }
 
       coach.innerHTML = `
         ${renderUpgradeCard()}
+        ${isDrill ? renderDrillCoachCard(play) : ""}
         ${play.result ? `
           <section class="micro-card">
             <p class="eyebrow">game over</p>
             <h2 class="micro-title">${play.result === "soft" ? "you won" : play.result === "bot" ? "bot won" : "draw"}</h2>
             <p class="micro-body">${escapeHTML(play.status)}</p>
-            <button class="primary-button" type="button" data-action="play-new">new game</button>
+            <div class="play-controls">
+              <button class="primary-button" type="button" data-action="play-new">${isDrill ? "fresh drill" : "new game"}</button>
+              ${renderPracticeAvoidingButton(play)}
+            </div>
           </section>
         ` : ""}
         ${play.coachOn ? `<section class="micro-card">
@@ -4434,7 +4789,7 @@
         botTimer = null;
         const current = ensurePlayState();
         if (current.turn !== "dark" || current.result) return;
-        const move = chooseBotMove(current);
+        const move = current.playMode === "drill" ? chooseDrillBotMove(current) : chooseBotMove(current);
         if (!move) {
           state.play = updatePlayStatus({ ...current, busy: false });
         } else {
@@ -4452,7 +4807,7 @@
       state.play.message = move.castle
         ? "You castled. The king slid toward the rook, and the rook tucked beside him."
         : `You moved ${describeMove({ ...move, piece: promotionChoice === "queen" && move.piece === "pawn" && Number(move.to[1]) === 8 ? "queen" : move.piece })}.`;
-      if (state.play.result === "soft") recordSoftWin();
+      if (state.play.result === "soft" && state.play.playMode !== "drill") recordSoftWin();
       render();
       queueBotMove();
     }
@@ -4836,7 +5191,8 @@
           clearHintFlash();
           state.difficulty = next;
           state.upgradePrompt = false;
-          state.play = newPlayState();
+          state.playMode = "real";
+          state.play = newPlayState("real");
           state.view = "play";
           render();
         }
@@ -4845,10 +5201,43 @@
         state.upgradePrompt = false;
         render();
       }
+      if (action === "set-play-mode") {
+        const mode = actionButton.dataset.playMode;
+        if (PLAY_MODES.includes(mode)) {
+          clearBotMove();
+          clearHintFlash();
+          state.playMode = mode;
+          state.drillType = DRILL_TYPES[state.drillType] ? state.drillType : "rook";
+          state.play = newPlayState(state.playMode, state.drillType);
+          render();
+        }
+      }
+      if (action === "set-drill-type") {
+        const type = actionButton.dataset.drillType;
+        if (DRILL_TYPES[type]) {
+          clearBotMove();
+          clearHintFlash();
+          state.playMode = "drill";
+          state.drillType = type;
+          state.play = newPlayState("drill", type);
+          render();
+        }
+      }
+      if (action === "play-practice-stalemate") {
+        clearBotMove();
+        clearHintFlash();
+        const play = ensurePlayState();
+        const type = drillTypeForStalemate(play.position);
+        state.playMode = "drill";
+        state.drillType = type;
+        state.play = newPlayState("drill", type);
+        render();
+        scrollStageIntoView();
+      }
       if (action === "play-new") {
         clearBotMove();
         clearHintFlash();
-        state.play = newPlayState();
+        state.play = newPlayState(state.playMode, state.drillType);
         render();
       }
       if (action === "play-coach-toggle") {
@@ -4905,6 +5294,8 @@
           revealedByStep: {},
           missCounts: {},
           winsByDifficulty: { easy: 0, normal: 0, hard: 0 },
+          playMode: "real",
+          drillType: "rook",
           play: null
         };
         render();
@@ -4916,7 +5307,14 @@
       legalGameMovesForSquare,
       allLegalGameMoves,
       validateCurriculumTargets,
-      validateGameLegality
+      validateGameLegality,
+      validateDrillPositions,
+      generateDrillPosition,
+      isValidDrillPosition,
+      drillTypeForStalemate,
+      applyGameMoveSnapshot,
+      updatePlayStatus,
+      isKingInCheck
     };
 
     window.setInterval(() => {
