@@ -1187,7 +1187,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "Girl Chess v4.0";
+    const APP_VERSION = "Girl Chess v4.2";
     const STORAGE_KEY = "girl-chess-progress-v1";
     const DIFFICULTIES = ["easy", "normal", "hard"];
     const WIN_UPGRADE_TARGET = 2;
@@ -2189,6 +2189,29 @@
       return "early";
     }
 
+    function coachSuggestionReason(play, move) {
+      const after = applyGameMoveSnapshot(play, move, "queen", true);
+      if (isKingInCheck(play.position, "soft")) {
+        return "your king is in danger, and this is a legal way to get safe";
+      }
+      if (after.result === "soft") return "it traps the dark king with checkmate";
+      if (move.capture) {
+        const taken = PIECE_BY_ID[move.capture] ? PIECE_BY_ID[move.capture].name : "piece";
+        return `it can take the dark ${taken} on ${move.to}`;
+      }
+      if (isKingInCheck(after.position, "dark")) {
+        return playMaterialPhase(play) === "endgame"
+          ? "it attacks the dark king and shrinks the trap"
+          : "it puts the dark king in check";
+      }
+      if (playMaterialPhase(play) === "endgame") {
+        return "it makes the dark king's safe space smaller";
+      }
+      if (move.piece === "pawn") return "it opens a path for your pieces to come out";
+      if (["knight", "bishop"].includes(move.piece)) return "it brings a back-row piece into the game";
+      return "it puts a piece on a legal square while your king stays safe";
+    }
+
     function applyCoachHint(play) {
       const rawSuggestion = suggestCoachMove(play);
       const suggestion = validatedCoachSuggestion(play, rawSuggestion);
@@ -2198,21 +2221,14 @@
       }
       play.hintLevel = Math.min(3, (play.hintLevel || 0) + 1);
       play.hintSquares = [];
+      const pieceName = PIECE_BY_ID[suggestion.piece].name;
+      const reason = coachSuggestionReason(play, suggestion);
       if (play.hintLevel === 1) {
-        if (playMaterialPhase(play) === "endgame") {
-          play.coachMessage = "Endgame checklist: bring your king closer, keep your attacking piece safe, and do not take every escape unless the move also gives check.";
-        } else {
-          play.coachMessage = isKingInCheck(play.position, "soft")
-            ? "Checklist: your king is in danger, so first make the king safe."
-            : suggestion.capture
-              ? "Opening checklist: one of your pieces can take something. Ask if that piece stays safe after."
-              : "Opening checklist: develop one piece, keep your king safe, and look for a clear road.";
-        }
+        play.coachMessage = `Try ${suggestion.from} to ${suggestion.to}. This helps because ${reason}.`;
       } else if (play.hintLevel === 2) {
-        const phase = playMaterialPhase(play) === "endgame" ? "Endgame hint" : "Move hint";
-        play.coachMessage = `${phase}: look at the ${PIECE_BY_ID[suggestion.piece].name} on ${suggestion.from}.`;
+        play.coachMessage = `Tap ${suggestion.to} with your ${pieceName}. Start on ${suggestion.from}; ${reason}.`;
       } else {
-        play.coachMessage = "Watch the suggestion flash.";
+        play.coachMessage = `Watch ${suggestion.from} to ${suggestion.to} flash. Then try it yourself.`;
         return [suggestion.from, suggestion.to];
       }
       return [];
@@ -3230,28 +3246,28 @@
         id: "queen-box",
         title: "king + queen",
         kind: "technique",
-        intro: "The queen makes the box smaller. The king helps finish.",
+        intro: "The queen takes away escape squares. Your king helps make the queen safe.",
         demoStart: [p("h8", "king", "dark"), p("f7", "king", "soft"), p("f6", "queen", "soft")],
         demoMoves: [
           {
             from: "f6",
             to: "g7",
-            why: "Queen to g7 puts the queen next to the king, but on a protected square.",
-            risk: "Risky-or-not: the queen looks close, but your king protects g7, so the dark king cannot take her.",
-            check: "Check-or-not: yes, the queen checks h8 on the slanted line.",
-            mate: "Mate-or-not: mate. g8, g7, and h7 are all covered."
+            why: "Queen to g7 attacks the dark king and takes away the last escape squares.",
+            risk: "Risky-or-not: the dark king cannot take the queen on g7 because your king controls g7. A king may not move onto a square your piece controls.",
+            check: "Check-or-not: yes. The queen attacks h8 diagonally from g7.",
+            mate: "Mate-or-not: mate. The dark king has no safe square: g8 is attacked by the queen, h7 is controlled by your king, and g7 is occupied by your queen."
           }
         ],
         testStart: [p("h8", "king", "dark"), p("f7", "king", "soft"), p("f6", "queen", "soft")],
         answers: [{ from: "f6", to: "g7" }],
         twinMove: { from: "f6", to: "g6" },
-        twin: "Queen to g6 takes every square but gives no check. That is the stale shape: the king has no move, but it is not in danger."
+        twin: "Queen to g6 takes away every escape square, but it does not attack h8. That is the stale shape: the king has no move, but it is not in danger."
       },
       {
         id: "rook-box",
         title: "king + rook",
         kind: "technique",
-        intro: "The rook closes the row. The king protects the rook.",
+        intro: "The rook attacks in a straight line. Your king makes nearby escape squares unsafe.",
         demoStart: [p("h8", "king", "dark"), p("h6", "king", "soft"), p("a1", "rook", "soft")],
         demoMoves: [
           {
@@ -3260,13 +3276,13 @@
             why: "Rook to a8 attacks the king across the last row.",
             risk: "Risky-or-not: the rook is far away, so the king cannot take it.",
             check: "Check-or-not: yes, the rook checks h8 along the eighth row.",
-            mate: "Mate-or-not: mate. Your king covers h7 and g7, and the rook covers g8."
+            mate: "Mate-or-not: mate. The rook attacks h8 and g8. Your king makes h7 and g7 unsafe."
           }
         ],
         testStart: [p("h8", "king", "dark"), p("h6", "king", "soft"), p("a1", "rook", "soft")],
         answers: [{ from: "a1", to: "a8" }],
         twinMove: { from: "a1", to: "g1" },
-        twin: "Rook to g1 covers g8, and your king covers h7 and g7. But h8 is not in check. The king is stuck, not attacked: stalemate."
+        twin: "Rook to g1 makes g8 unsafe, and your king makes h7 and g7 unsafe. But h8 is not attacked, so the king is stuck, not checked: stalemate."
       },
       {
         id: "two-rooks",
@@ -3278,7 +3294,7 @@
           {
             from: "a6",
             to: "a7",
-            why: "Rook to a7 holds the h7 and g7 doors shut from far away.",
+            why: "Rook to a7 makes h7 and g7 unsafe from far away.",
             risk: "Risky-or-not: nothing can take this rook from a7.",
             check: "Check-or-not: no. This move is only closing an escape square.",
             mate: "Mate-or-not: not yet. This is the setup move."
@@ -3286,22 +3302,22 @@
           {
             from: "b1",
             to: "b8",
-            why: "Rook to b8 gives the actual check while the other rook guards the seventh row.",
+            why: "Rook to b8 gives the actual check while the other rook makes the seventh row unsafe.",
             risk: "Risky-or-not: the rook is far away, so the king cannot take it.",
             check: "Check-or-not: yes, the rook checks the king across the eighth row.",
-            mate: "Mate-or-not: mate. One rook checks, one rook holds the door."
+            mate: "Mate-or-not: mate. One rook attacks h8. The other rook makes h7 and g7 unsafe."
           }
         ],
         testStart: [p("h8", "king", "dark"), p("e6", "king", "soft"), p("a7", "rook", "soft"), p("b1", "rook", "soft")],
         answers: [{ from: "b1", to: "b8" }],
         twinMove: { from: "b1", to: "g1" },
-        twin: "Rook to g1 covers g8 while the other rook covers h7 and g7. It gives no check. That is stalemate: no safe move, but no danger."
+        twin: "Rook to g1 makes g8 unsafe while the other rook makes h7 and g7 unsafe. It gives no check. That is stalemate: no safe move, but no danger."
       },
       {
         id: "two-bishops",
         title: "king + two bishops",
         kind: "technique",
-        intro: "The bishops cross the room. One bishop checks; the other closes the escape.",
+        intro: "The bishops use slanted lines. One bishop attacks the king; the other makes an escape square unsafe.",
         demoStart: [p("h8", "king", "dark"), p("f7", "king", "soft"), p("e3", "bishop", "soft"), p("e4", "bishop", "soft")],
         demoMoves: [
           {
@@ -3310,13 +3326,13 @@
             why: "Bishop to d4 points at h8 on a slanted line.",
             risk: "Risky-or-not: nothing can take the bishop on d4.",
             check: "Check-or-not: yes, the bishop checks along d4-e5-f6-g7-h8.",
-            mate: "Mate-or-not: mate. The other bishop covers h7, and your king covers g8 and g7."
+            mate: "Mate-or-not: mate. The other bishop makes h7 unsafe, and your king makes g8 and g7 unsafe."
           }
         ],
         testStart: [p("h8", "king", "dark"), p("f7", "king", "soft"), p("e3", "bishop", "soft"), p("e4", "bishop", "soft")],
         answers: [{ from: "e3", to: "d4" }],
         twinMove: { from: "e4", to: "g6" },
-        twin: "Bishop to g6 closes h7, while your king closes g8 and g7. But there is no check, so it is stalemate."
+        twin: "Bishop to g6 makes h7 unsafe, while your king makes g8 and g7 unsafe. But h8 is not attacked, so it is stalemate."
       },
       {
         id: "back-rank",
@@ -3364,7 +3380,7 @@
         id: "anastasia",
         title: "Anastasia's mate",
         kind: "pattern",
-        intro: "The knight guards the escape squares. The rook uses the open edge file.",
+        intro: "The knight makes two escape squares unsafe. The rook attacks on the open edge file.",
         demoStart: [p("h7", "king", "dark"), p("g7", "pawn", "dark"), p("a1", "king", "soft"), p("e7", "knight", "soft"), p("h1", "rook", "soft")],
         demoMoves: [
           {
@@ -3373,7 +3389,7 @@
             why: "Rook to h3 checks up the open h-file.",
             risk: "Risky-or-not: the rook is far away, so the king cannot take it.",
             check: "Check-or-not: yes, the rook checks up the h-file.",
-            mate: "Mate-or-not: mate. The knight covers g8 and g6; the pawn blocks g7."
+            mate: "Mate-or-not: mate. The knight makes g8 and g6 unsafe; the pawn blocks g7."
           }
         ],
         testStart: [p("h7", "king", "dark"), p("g7", "pawn", "dark"), p("a1", "king", "soft"), p("e7", "knight", "soft"), p("h1", "rook", "soft")],
@@ -3385,16 +3401,16 @@
         id: "arabian",
         title: "Arabian mate",
         kind: "pattern",
-        intro: "The knight protects the rook. The rook checks the corner king.",
+        intro: "The knight makes g8 unsafe and makes the rook safe. The rook attacks the corner king.",
         demoStart: [p("h8", "king", "dark"), p("a1", "king", "soft"), p("f6", "knight", "soft"), p("h1", "rook", "soft")],
         demoMoves: [
           {
             from: "h1",
             to: "h7",
             why: "Rook to h7 checks the corner king from right below.",
-            risk: "Risky-or-not: the knight on f6 protects the rook.",
+            risk: "Risky-or-not: the dark king cannot take the rook because the knight on f6 controls h7.",
             check: "Check-or-not: yes, the rook checks up the h-file.",
-            mate: "Mate-or-not: mate. The knight covers g8; the rook covers g7."
+            mate: "Mate-or-not: mate. The knight makes g8 unsafe; the rook attacks h8 and makes g7 unsafe."
           }
         ],
         testStart: [p("h8", "king", "dark"), p("a1", "king", "soft"), p("f6", "knight", "soft"), p("h1", "rook", "soft")],
@@ -3414,20 +3430,20 @@
             to: "d4",
             why: "Bishop to d4 creates the checking diagonal.",
             risk: "Risky-or-not: nothing can take that bishop.",
-            check: "Check-or-not: yes, one bishop checks while the other covers h7.",
-            mate: "Mate-or-not: mate. The crossing diagonals and your king cover every escape."
+            check: "Check-or-not: yes, one bishop attacks h8 while the other makes h7 unsafe.",
+            mate: "Mate-or-not: mate. The crossing diagonals and your king make every escape square unsafe."
           }
         ],
         testStart: [p("h8", "king", "dark"), p("f7", "king", "soft"), p("e3", "bishop", "soft"), p("e4", "bishop", "soft")],
         answers: [{ from: "e3", to: "d4" }],
         twinMove: { from: "e4", to: "g6" },
-        twin: "One bishop closes an escape, but no bishop checks the king. That is the missing danger."
+        twin: "One bishop makes an escape square unsafe, but no bishop attacks the king. That is the missing danger."
       },
       {
         id: "greco",
         title: "Greco's mate",
         kind: "pattern",
-        intro: "A bishop covers the escape. A rook checks on the open h-file.",
+        intro: "A bishop makes g8 unsafe. A rook attacks on the open h-file.",
         demoStart: [p("h8", "king", "dark"), p("g7", "pawn", "dark"), p("f2", "king", "soft"), p("c4", "bishop", "soft"), p("a1", "rook", "soft")],
         demoMoves: [
           {
@@ -3436,7 +3452,7 @@
             why: "Rook to h1 opens the h-file check.",
             risk: "Risky-or-not: nothing can take the rook on h1.",
             check: "Check-or-not: yes, the rook checks up the h-file.",
-            mate: "Mate-or-not: mate. The bishop covers g8, and the dark pawn blocks g7."
+            mate: "Mate-or-not: mate. The bishop makes g8 unsafe, and the dark pawn blocks g7."
           }
         ],
         testStart: [p("h8", "king", "dark"), p("g7", "pawn", "dark"), p("f2", "king", "soft"), p("c4", "bishop", "soft"), p("a1", "rook", "soft")],
@@ -4518,22 +4534,68 @@
       return null;
     }
 
-    function moveResultChecklist(before, move, drillMove) {
-      const engineMove = moveForEngine(before, move);
-      const after = applyPracticeMove(before, move, true);
-      const darkPlay = { ...after, turn: "dark" };
-      const darkLegal = allLegalGameMoves(darkPlay, "dark");
-      const givesCheck = isKingInCheck(after.position, "dark");
-      const isMate = after.result === "soft";
-      const escapeText = darkLegal.length && givesCheck
-        ? ` The king still has ${darkLegal[0].to}.`
-        : "";
-      return [
-        `Why: ${drillMove.why || `${movePieceName(before, move)} to ${move.to} changes the cage.`}`,
-        drillMove.risk || `Risky-or-not: ${isSquareAttacked(after.position, move.to, "dark") ? "this square is under pressure, so check what protects it" : "nothing can take it right now"}.`,
-        drillMove.check || `Check-or-not: ${givesCheck ? `yes.${escapeText}` : "no, this move does not attack the king."}`,
-        drillMove.mate || `Mate-or-not: ${isMate ? "mate. The game ends." : "not mate yet."}`
-      ];
+    function cleanCoachText(value) {
+      return String(value || "")
+        .replace(/^(Why|Risky-or-not|Check-or-not|Mate-or-not):\s*/i, "")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function finishSentence(value) {
+      const text = cleanCoachText(value);
+      if (!text) return "";
+      return /[.!?]$/.test(text) ? text : `${text}.`;
+    }
+
+    function capitalSentence(value) {
+      const text = finishSentence(value);
+      return text ? text.charAt(0).toUpperCase() + text.slice(1) : "";
+    }
+
+    function becauseText(value) {
+      return finishSentence(value).replace(/[.!?]$/, "").replace(/^./, char => char.toLowerCase());
+    }
+
+    function matchingDemoMove(drill, move) {
+      return (drill.demoMoves || []).find(item => item.from === move.from && item.to === move.to) || move;
+    }
+
+    function compactMoveReason(position, drill, move) {
+      const demoMove = matchingDemoMove(drill, move);
+      const pieceName = movePieceName(position, move);
+      let reason = cleanCoachText(demoMove.hint || demoMove.why || drill.intro || "it helps build the trap");
+      const opener = `${pieceName} to ${move.to}`;
+      if (reason.toLowerCase().startsWith(opener.toLowerCase())) {
+        reason = `it ${reason.slice(opener.length).trim()}`;
+      }
+      return finishSentence(reason);
+    }
+
+    function practiceMoveInstruction(drill, move, position) {
+      const pieceName = movePieceName(position, move);
+      return `Tap ${move.to}. This moves your ${pieceName} from ${move.from} to ${move.to}. ${capitalSentence(compactMoveReason(position, drill, move))}`;
+    }
+
+    function practiceMoveResult(drill, move, position) {
+      const pieceName = movePieceName(position, move);
+      const after = applyPracticeMove(position, move, true);
+      if (after.result === "soft") {
+        return `Yes. Your ${pieceName} on ${move.to} attacks the king, and the king has no safe square left. That is checkmate.`;
+      }
+      if (isKingInCheck(after.position, "dark")) {
+        return `Yes. Your ${pieceName} on ${move.to} attacks the king. Keep going until there are no safe squares left.`;
+      }
+      return `Yes. Your ${pieceName} on ${move.to} takes away escape space. That sets up the next move.`;
+    }
+
+    function practiceTwinInstruction(drill) {
+      const move = drill.twinMove;
+      const pieceName = movePieceName(drill.testStart, move);
+      return `Tap ${move.to}. This moves your ${pieceName} from ${move.from} to ${move.to}. It is the almost-right version, so watch why it does not win.`;
+    }
+
+    function practiceTwinResult(drill) {
+      return `${finishSentence(drill.twin)} That is the difference: close is not checkmate unless the king is attacked.`;
     }
 
     function isStalemateMove(position, move) {
@@ -4556,9 +4618,11 @@
       const drill = currentPracticeDrill();
       const answer = drill.answers[0];
       if (!state.practiceHintLevel) return "";
-      if (state.practiceHintLevel === 1) return "Use the checklist: risky-or-not, check-or-not, mate-or-not.";
-      if (state.practiceHintLevel === 2) return `Look for the ${movePieceName(drill.testStart, answer)}.`;
-      return "The hint flashed. Try the move from memory.";
+      const pieceName = movePieceName(drill.testStart, answer);
+      const reason = compactMoveReason(drill.testStart, drill, answer);
+      if (state.practiceHintLevel === 1) return `Try moving your ${pieceName} from ${answer.from} to ${answer.to}. ${capitalSentence(reason)}`;
+      if (state.practiceHintLevel === 2) return `Tap ${answer.to}. That square works because ${becauseText(reason)}.`;
+      return `The flash is gone. Try ${answer.from} to ${answer.to} from memory.`;
     }
 
     function getPracticeCoachMessage() {
@@ -4568,7 +4632,7 @@
         return {
           eyebrow: "practice",
           title: "mating curriculum",
-          body: "Practice is now only mating patterns. Pick Demo, Test, or Twin.",
+          body: "Practice is mating patterns. Use Show Me first, then Try It. Mistake shows the almost-right move.",
           feedback: state.feedback || `${done}/${PRACTICE.length} drills passed.`
         };
       }
@@ -4576,15 +4640,14 @@
         const move = currentPracticeMove();
         const before = positionAfterPracticeMoves(drill, state.practiceStep);
         return {
-          eyebrow: `demo ${state.practiceStep + 1}/${drill.demoMoves.length}`,
-          title: state.practiceStepDone ? "checklist" : drill.title,
-          body: state.practiceStepDone ? "Same checklist every move." : `Guided move: tap ${move.to}.`,
-          checklist: state.practiceStepDone ? moveResultChecklist(before, move, move) : [],
-          feedback: state.feedback || (state.practiceStepDone ? "Press next for the next move." : practicePrompt()),
+          eyebrow: "coach",
+          title: state.practiceStepDone ? "why that worked" : drill.title,
+          body: state.practiceStepDone ? practiceMoveResult(drill, move, before) : practiceMoveInstruction(drill, move, before),
+          feedback: state.feedback || (state.practiceStepDone ? "Press next." : practicePrompt()),
           actions: `
             <div class="action-row">
               <button class="small-button" type="button" data-action="practice-menu">menu</button>
-              <button class="primary-button" type="button" data-action="practice-next-step" ${state.practiceStepDone ? "" : "disabled"}>${state.practiceStep >= drill.demoMoves.length - 1 ? "finish demo" : "next"}</button>
+              <button class="primary-button" type="button" data-action="practice-next-step" ${state.practiceStepDone ? "" : "disabled"}>${state.practiceStep >= drill.demoMoves.length - 1 ? "finish show me" : "next"}</button>
             </div>
           `
         };
@@ -4592,35 +4655,28 @@
       if (state.practiceMode === "test") {
         const passed = Boolean(state.practiceStepDone && state.completedDrills && state.completedDrills[drill.id]);
         return {
-          eyebrow: "test",
+          eyebrow: "coach",
           title: passed ? "passed" : drill.title,
-          body: passed ? "You found the mate. You can repeat this any time." : "The answer is not shown. The structure stays here.",
-          checklist: passed ? ["Why: the move gave check.", "Risky-or-not: the mating piece was safe enough.", "Check-or-not: yes.", "Mate-or-not: mate."] : [],
+          body: passed ? practiceMoveResult(drill, drill.answers[0], clonePosition(drill.testStart)) : "Find the move that attacks the king and leaves no safe square.",
           feedback: state.feedback || practiceHintMessage() || (state.practiceSelected ? "Now tap the landing square." : practicePrompt()),
           actions: `
             <div class="action-row three">
               <button class="small-button" type="button" data-action="practice-menu">menu</button>
               <button class="small-button" type="button" data-action="practice-hint" ${passed ? "disabled" : ""}>hint</button>
-              <button class="primary-button" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(drill.id)}" data-practice-mode="twin">twin</button>
+              <button class="primary-button" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(drill.id)}" data-practice-mode="twin">mistake</button>
             </div>
           `
         };
       }
       return {
-        eyebrow: "stalemate twin",
+        eyebrow: "coach",
         title: state.practiceStepDone ? "why it goes wrong" : drill.title,
-        body: state.practiceStepDone ? "This is the mistake pattern on the same kind of board." : `Guided wrong move: tap ${drill.twinMove.to}.`,
-        checklist: state.practiceStepDone ? [
-          `Why: ${drill.twin}`,
-          "Risky-or-not: the problem is not losing the piece.",
-          "Check-or-not: no. That is the missing ingredient.",
-          "Mate-or-not: not mate. It is the stale shape to avoid."
-        ] : [],
-        feedback: state.feedback || (state.practiceStepDone ? "Twin complete. Go back or test again." : practicePrompt()),
+        body: state.practiceStepDone ? practiceTwinResult(drill) : practiceTwinInstruction(drill),
+        feedback: state.feedback || (state.practiceStepDone ? "Mistake example complete. Go back or test again." : practicePrompt()),
         actions: `
           <div class="action-row">
             <button class="small-button" type="button" data-action="practice-menu">menu</button>
-            <button class="primary-button" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(drill.id)}" data-practice-mode="test">test</button>
+            <button class="primary-button" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(drill.id)}" data-practice-mode="test">try it</button>
           </div>
         `
       };
@@ -5122,7 +5178,7 @@
             <div>
               <p class="eyebrow">practice</p>
               <h2 class="macro-title">mate patterns</h2>
-              <p class="plain-text">Each drill has a guided demo, a test, and a stalemate twin.</p>
+              <p class="plain-text">Each drill has Show Me, Try It, and Mistake.</p>
             </div>
           </section>
           <section class="drill-list">
@@ -5139,9 +5195,9 @@
                     <span class="drill-status">${done ? "done" : drill.kind}</span>
                   </div>
                   <div class="action-row three">
-                    <button class="small-button" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(drill.id)}" data-practice-mode="demo">demo</button>
-                    <button class="primary-button" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(drill.id)}" data-practice-mode="test">test</button>
-                    <button class="small-button" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(drill.id)}" data-practice-mode="twin">twin</button>
+                    <button class="small-button" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(drill.id)}" data-practice-mode="demo">show me</button>
+                    <button class="primary-button" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(drill.id)}" data-practice-mode="test">try it</button>
+                    <button class="small-button" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(drill.id)}" data-practice-mode="twin">mistake</button>
                   </div>
                 </article>
               `;
@@ -5153,7 +5209,7 @@
         stage.innerHTML = `
           <section class="macro-card">
             <div>
-              <p class="eyebrow">${escapeHTML(state.practiceMode)}</p>
+              <p class="eyebrow">practice</p>
               <h2 class="macro-title">${escapeHTML(item.title)}</h2>
               <p class="plain-text">${escapeHTML(item.intro)}</p>
             </div>
@@ -5471,7 +5527,7 @@
       state.practiceStepDone = false;
       state.practiceSelected = null;
       state.practiceHintLevel = 0;
-      state.feedback = "Demo complete. Try the test with the same checklist.";
+      state.feedback = "Show Me complete. Try it without the coach giving the answer first.";
       render();
     }
 
@@ -5491,7 +5547,7 @@
       const drill = currentPracticeDrill();
       if (state.practiceMode === "demo" || state.practiceMode === "twin") {
         if (state.practiceStepDone) {
-          state.feedback = state.practiceMode === "demo" ? "Press next for the next move." : "Twin complete. Pick test or menu.";
+          state.feedback = state.practiceMode === "demo" ? "Press next for the next move." : "Mistake example complete. Pick Try It or menu.";
           render();
           return;
         }
@@ -5502,7 +5558,7 @@
         }
         state.practiceStepDone = true;
         state.practiceSelected = null;
-        state.feedback = state.practiceMode === "demo" ? "Good. Read the checklist." : "Good. This is the mistake shape.";
+        state.feedback = state.practiceMode === "demo" ? "Good. The coach will explain why." : "Good. Now read why that almost worked.";
         render();
         return;
       }
@@ -5543,7 +5599,7 @@
       }
       if (isStalemateMove(position, move)) {
         state.practiceSelected = null;
-        state.feedback = "Stalemate caught. Risky-or-not: the piece is not the issue. Check-or-not: no check. Mate-or-not: not mate, because the king is stuck but not attacked.";
+        state.feedback = "Stalemate caught. The king is stuck, but it is not being attacked. Try a move that also attacks the king.";
         render();
         return;
       }
@@ -5561,11 +5617,11 @@
 
       state.practiceSelected = null;
       if (after.result === "draw") {
-        state.feedback = "That would draw. Check-or-not: no check. Try again with a move that attacks the king.";
+        state.feedback = "That would draw. The king is not being attacked. Try a move that attacks the king and closes the exits.";
       } else if (isKingInCheck(after.position, "dark")) {
         state.feedback = "That gives check, but it is not mate yet. The test asks for the finishing move.";
       } else {
-        state.feedback = "That move is legal, but it does not trap the king. Use the checklist and try again.";
+        state.feedback = "That move is legal, but it does not finish the trap. Try a move that attacks the king and closes the exits.";
       }
       render();
     }
@@ -5773,7 +5829,7 @@
         state.practiceHintLevel = Math.min(3, (state.practiceHintLevel || 0) + 1);
         if (state.practiceHintLevel >= 3) {
           state.practiceHintLevel = 3;
-          flashPracticeSquares([answer.from, answer.to], "Watch the hint flash.", "The flash is gone. Try the move from memory.");
+          flashPracticeSquares([answer.from, answer.to], `Watch ${answer.from} to ${answer.to} flash.`, `The flash is gone. Try ${answer.from} to ${answer.to} from memory.`);
         } else {
           state.feedback = practiceHintMessage();
           render();
@@ -5785,7 +5841,7 @@
       if (action === "practice-answer") {
         const drill = currentPracticeDrill();
         const answer = drill.answers[0];
-        flashPracticeSquares([answer.from, answer.to], "Watch the answer flash.", "The flash is gone. Try the move from memory.");
+        flashPracticeSquares([answer.from, answer.to], `Watch ${answer.from} to ${answer.to} flash.`, `The flash is gone. Try ${answer.from} to ${answer.to} from memory.`);
         render();
       }
       if (action === "practice-next") {
@@ -5922,7 +5978,7 @@
         if (flashSquares.length) {
           startHintFlash(flashSquares, {
             clearCoachMessage: true,
-            restoreCoachMessage: "The flash is gone. Try the move from memory."
+            restoreCoachMessage: `The flash is gone. Try ${flashSquares[0]} to ${flashSquares[1]} from memory.`
           });
         } else {
           render();
