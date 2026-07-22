@@ -974,6 +974,80 @@
       margin-top: 12px;
     }
 
+    .drill-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .drill-card {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      border: 2px solid var(--line-soft);
+      background: var(--white);
+    }
+
+    .drill-card.is-done {
+      background: var(--pink-2);
+      border-color: var(--line);
+    }
+
+    .drill-card-head {
+      display: grid;
+      grid-template-columns: 42px 1fr auto;
+      gap: 9px;
+      align-items: center;
+    }
+
+    .drill-number,
+    .drill-status {
+      min-height: 36px;
+      display: grid;
+      place-items: center;
+      border: 2px solid var(--line);
+      background: var(--pink-3);
+      font-family: "Silkscreen", monospace;
+      font-size: 11px;
+      line-height: 1;
+      text-transform: lowercase;
+    }
+
+    .drill-status {
+      min-width: 58px;
+      padding: 0 6px;
+      background: var(--pink-1);
+    }
+
+    .drill-title {
+      margin: 0;
+      font-family: "Silkscreen", monospace;
+      font-size: 14px;
+      line-height: 1.15;
+      text-transform: lowercase;
+    }
+
+    .drill-body {
+      margin: 3px 0 0;
+      font-size: 15px;
+      line-height: 1.35;
+    }
+
+    .checklist {
+      display: grid;
+      gap: 7px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      font-size: 15px;
+      line-height: 1.35;
+    }
+
+    .checklist li {
+      padding: 8px;
+      border: 2px solid var(--line-soft);
+      background: var(--pink-1);
+    }
+
     .practice-card,
     .about-card {
       padding: 14px;
@@ -1113,11 +1187,11 @@
   </div>
 
   <script>
-    const APP_VERSION = "Girl Chess v3.5";
+    const APP_VERSION = "Girl Chess v4.0";
     const STORAGE_KEY = "girl-chess-progress-v1";
     const DIFFICULTIES = ["easy", "normal", "hard"];
     const WIN_UPGRADE_TARGET = 2;
-    const PLAY_MODES = ["real", "drill"];
+    const PLAY_MODES = ["real"];
     const DRILL_TYPES = {
       rook: {
         label: "king + two rooks",
@@ -1895,8 +1969,7 @@
       return next;
     }
 
-    function newPlayState(mode = "real", drillType = "rook") {
-      if (mode === "drill") return newDrillPlayState(drillType);
+    function newPlayState() {
       return updatePlayStatus({
         position: clonePosition(STARTING_POSITION),
         turn: "soft",
@@ -1925,17 +1998,16 @@
     }
 
     function ensurePlayState() {
-      const mode = PLAY_MODES.includes(state.playMode) ? state.playMode : "real";
-      const drillType = DRILL_TYPES[state.drillType] ? state.drillType : "rook";
+      state.playMode = "real";
+      state.drillType = "rook";
       if (
         !state.play ||
         !Array.isArray(state.play.position) ||
-        (mode === "real" && (state.play.playMode || "real") !== "real") ||
-        (mode === "drill" && (state.play.playMode !== "drill" || state.play.drillType !== drillType))
+        (state.play.playMode || "real") !== "real"
       ) {
-        state.play = newPlayState(mode, drillType);
+        state.play = newPlayState();
       }
-      const base = newPlayState(mode, drillType);
+      const base = newPlayState();
       state.play = {
         ...base,
         ...state.play,
@@ -1945,6 +2017,8 @@
           dark: { king: true, queen: true }
         })
       };
+      state.play.playMode = "real";
+      state.play.drillType = null;
       state.play = updatePlayStatus(state.play);
       return state.play;
     }
@@ -2101,8 +2175,22 @@
       return squareIsEdge(darkKing.square) || allLegalGameMoves({ ...play, turn: "dark" }, "dark").length <= 2;
     }
 
+    function materialScore(position, side = null) {
+      return position
+        .filter(piece => piece.piece !== "king" && (!side || piece.side === side))
+        .reduce((total, piece) => total + (PIECE_VALUES[piece.piece] || 0), 0);
+    }
+
+    function playMaterialPhase(play) {
+      const nonKings = play.position.filter(piece => piece.piece !== "king");
+      const softScore = materialScore(play.position, "soft");
+      const darkScore = materialScore(play.position, "dark");
+      if (nonKings.length <= 8 || softScore <= 14 || darkScore <= 12) return "endgame";
+      return "early";
+    }
+
     function applyCoachHint(play) {
-      const rawSuggestion = play.playMode === "drill" ? suggestDrillMove(play) : suggestCoachMove(play);
+      const rawSuggestion = suggestCoachMove(play);
       const suggestion = validatedCoachSuggestion(play, rawSuggestion);
       if (!suggestion) {
         play.coachMessage = "No clear hint right now. Try any legal move, or start fresh.";
@@ -2111,19 +2199,18 @@
       play.hintLevel = Math.min(3, (play.hintLevel || 0) + 1);
       play.hintSquares = [];
       if (play.hintLevel === 1) {
-        if (play.playMode === "drill" && enemyKingIsNearlyBoxed(play)) {
-          play.coachMessage = "Habit check: after this move, does their king have a square to go to, or am I checking it right now?";
-        } else if (play.playMode === "drill") {
-          play.coachMessage = DRILL_TYPES[play.drillType] ? DRILL_TYPES[play.drillType].hint : "Idea: make the king's space smaller without stalemating.";
+        if (playMaterialPhase(play) === "endgame") {
+          play.coachMessage = "Endgame checklist: bring your king closer, keep your attacking piece safe, and do not take every escape unless the move also gives check.";
         } else {
           play.coachMessage = isKingInCheck(play.position, "soft")
-            ? "Idea: your king is in danger, so first make the king safe."
+            ? "Checklist: your king is in danger, so first make the king safe."
             : suggestion.capture
-              ? "Idea: one of your pieces can take something."
-              : "Idea: look for one piece with a clear road.";
+              ? "Opening checklist: one of your pieces can take something. Ask if that piece stays safe after."
+              : "Opening checklist: develop one piece, keep your king safe, and look for a clear road.";
         }
       } else if (play.hintLevel === 2) {
-        play.coachMessage = `Look at the ${PIECE_BY_ID[suggestion.piece].name} on ${suggestion.from}.`;
+        const phase = playMaterialPhase(play) === "endgame" ? "Endgame hint" : "Move hint";
+        play.coachMessage = `${phase}: look at the ${PIECE_BY_ID[suggestion.piece].name} on ${suggestion.from}.`;
       } else {
         play.coachMessage = "Watch the suggestion flash.";
         return [suggestion.from, suggestion.to];
@@ -3138,141 +3225,228 @@
       }
     ];
 
-    const PRACTICE = [
+    const MATING_DRILLS = [
       {
-        title: "find both kings",
-        body: "Tap both kings.",
-        position: "start",
-        targets: pieceTargets("start", "king"),
-        completeMode: "all"
+        id: "queen-box",
+        title: "king + queen",
+        kind: "technique",
+        intro: "The queen makes the box smaller. The king helps finish.",
+        demoStart: [p("h8", "king", "dark"), p("f7", "king", "soft"), p("f6", "queen", "soft")],
+        demoMoves: [
+          {
+            from: "f6",
+            to: "g7",
+            why: "Queen to g7 puts the queen next to the king, but on a protected square.",
+            risk: "Risky-or-not: the queen looks close, but your king protects g7, so the dark king cannot take her.",
+            check: "Check-or-not: yes, the queen checks h8 on the slanted line.",
+            mate: "Mate-or-not: mate. g8, g7, and h7 are all covered."
+          }
+        ],
+        testStart: [p("h8", "king", "dark"), p("f7", "king", "soft"), p("f6", "queen", "soft")],
+        answers: [{ from: "f6", to: "g7" }],
+        twinMove: { from: "f6", to: "g6" },
+        twin: "Queen to g6 takes every square but gives no check. That is the stale shape: the king has no move, but it is not in danger."
       },
       {
-        title: "name d4",
-        body: "Tap the square d4.",
-        position: "empty",
-        targets: squares("d4"),
-        completeMode: "one"
+        id: "rook-box",
+        title: "king + rook",
+        kind: "technique",
+        intro: "The rook closes the row. The king protects the rook.",
+        demoStart: [p("h8", "king", "dark"), p("h6", "king", "soft"), p("a1", "rook", "soft")],
+        demoMoves: [
+          {
+            from: "a1",
+            to: "a8",
+            why: "Rook to a8 attacks the king across the last row.",
+            risk: "Risky-or-not: the rook is far away, so the king cannot take it.",
+            check: "Check-or-not: yes, the rook checks h8 along the eighth row.",
+            mate: "Mate-or-not: mate. Your king covers h7 and g7, and the rook covers g8."
+          }
+        ],
+        testStart: [p("h8", "king", "dark"), p("h6", "king", "soft"), p("a1", "rook", "soft")],
+        answers: [{ from: "a1", to: "a8" }],
+        twinMove: { from: "a1", to: "g1" },
+        twin: "Rook to g1 covers g8, and your king covers h7 and g7. But h8 is not in check. The king is stuck, not attacked: stalemate."
       },
       {
-        title: "knight move",
-        body: "Tap one square the knight can jump to from d5.",
-        position: "knight",
-        targets: legalTargets("knight", "d5", "all"),
-        completeMode: "one"
+        id: "two-rooks",
+        title: "king + two rooks",
+        kind: "technique",
+        intro: "Hold the doors: one rook closes an escape row, then the other rook gives check.",
+        demoStart: [p("h8", "king", "dark"), p("e6", "king", "soft"), p("a6", "rook", "soft"), p("b1", "rook", "soft")],
+        demoMoves: [
+          {
+            from: "a6",
+            to: "a7",
+            why: "Rook to a7 holds the h7 and g7 doors shut from far away.",
+            risk: "Risky-or-not: nothing can take this rook from a7.",
+            check: "Check-or-not: no. This move is only closing an escape square.",
+            mate: "Mate-or-not: not yet. This is the setup move."
+          },
+          {
+            from: "b1",
+            to: "b8",
+            why: "Rook to b8 gives the actual check while the other rook guards the seventh row.",
+            risk: "Risky-or-not: the rook is far away, so the king cannot take it.",
+            check: "Check-or-not: yes, the rook checks the king across the eighth row.",
+            mate: "Mate-or-not: mate. One rook checks, one rook holds the door."
+          }
+        ],
+        testStart: [p("h8", "king", "dark"), p("e6", "king", "soft"), p("a7", "rook", "soft"), p("b1", "rook", "soft")],
+        answers: [{ from: "b1", to: "b8" }],
+        twinMove: { from: "b1", to: "g1" },
+        twin: "Rook to g1 covers g8 while the other rook covers h7 and g7. It gives no check. That is stalemate: no safe move, but no danger."
       },
       {
-        title: "rook take",
-        body: "Tap a dark pink piece the rook can take.",
-        position: "rooks",
-        targets: legalTargets("rooks", "d4", "captures"),
-        completeMode: "one"
+        id: "two-bishops",
+        title: "king + two bishops",
+        kind: "technique",
+        intro: "The bishops cross the room. One bishop checks; the other closes the escape.",
+        demoStart: [p("h8", "king", "dark"), p("f7", "king", "soft"), p("e3", "bishop", "soft"), p("e4", "bishop", "soft")],
+        demoMoves: [
+          {
+            from: "e3",
+            to: "d4",
+            why: "Bishop to d4 points at h8 on a slanted line.",
+            risk: "Risky-or-not: nothing can take the bishop on d4.",
+            check: "Check-or-not: yes, the bishop checks along d4-e5-f6-g7-h8.",
+            mate: "Mate-or-not: mate. The other bishop covers h7, and your king covers g8 and g7."
+          }
+        ],
+        testStart: [p("h8", "king", "dark"), p("f7", "king", "soft"), p("e3", "bishop", "soft"), p("e4", "bishop", "soft")],
+        answers: [{ from: "e3", to: "d4" }],
+        twinMove: { from: "e4", to: "g6" },
+        twin: "Bishop to g6 closes h7, while your king closes g8 and g7. But there is no check, so it is stalemate."
       },
       {
-        title: "bishop line",
-        body: "Tap a square the bishop can move to.",
-        position: "bishops",
-        targets: legalTargets("bishops", "d4", "moves"),
-        completeMode: "one"
+        id: "back-rank",
+        title: "back-rank mate",
+        kind: "pattern",
+        intro: "The king is trapped behind its own pawns. A rook lands on the last row.",
+        demoStart: [p("g8", "king", "dark"), p("f7", "pawn", "dark"), p("g7", "pawn", "dark"), p("h7", "pawn", "dark"), p("a1", "king", "soft"), p("e1", "rook", "soft")],
+        demoMoves: [
+          {
+            from: "e1",
+            to: "e8",
+            why: "Rook to e8 attacks the king across the back rank.",
+            risk: "Risky-or-not: nothing can take the rook on e8.",
+            check: "Check-or-not: yes, the rook checks along the eighth row.",
+            mate: "Mate-or-not: mate. The dark pawns block the king's exits."
+          }
+        ],
+        testStart: [p("g8", "king", "dark"), p("f7", "pawn", "dark"), p("g7", "pawn", "dark"), p("h7", "pawn", "dark"), p("a1", "king", "soft"), p("e1", "rook", "soft")],
+        answers: [{ from: "e1", to: "e8" }],
+        twinMove: { from: "e1", to: "e7" },
+        twin: "Rook to e7 attacks the pawn wall, not the king. The back rank is still a cage, but the checking move did not arrive."
       },
       {
-        title: "queen line",
-        body: "Tap a square the queen can move to.",
-        position: "queen",
-        targets: legalTargets("queen", "d4", "all"),
-        completeMode: "one"
+        id: "smothered",
+        title: "smothered mate",
+        kind: "pattern",
+        intro: "A knight gives check while the king's own pieces smother every escape.",
+        demoStart: [p("h8", "king", "dark"), p("g8", "rook", "dark"), p("g7", "pawn", "dark"), p("h7", "pawn", "dark"), p("a1", "king", "soft"), p("h6", "knight", "soft")],
+        demoMoves: [
+          {
+            from: "h6",
+            to: "f7",
+            why: "Knight to f7 jumps into checking distance.",
+            risk: "Risky-or-not: the knight cannot be reached by the trapped king.",
+            check: "Check-or-not: yes. Knights check by landing in an L shape.",
+            mate: "Mate-or-not: mate. The dark rook and pawns block every escape."
+          }
+        ],
+        testStart: [p("h8", "king", "dark"), p("g8", "rook", "dark"), p("g7", "pawn", "dark"), p("h7", "pawn", "dark"), p("a1", "king", "soft"), p("h6", "knight", "soft")],
+        answers: [{ from: "h6", to: "f7" }],
+        twinMove: { from: "h6", to: "g8" },
+        twin: "The knight taking g8 removes one wall. Smothered mate needs the enemy pieces to stay as the cage."
       },
       {
-        title: "king safety",
-        body: "Tap the king that is in danger.",
-        position: "king",
-        targets: pieceTargets("king", "king", "dark"),
-        completeMode: "one"
+        id: "anastasia",
+        title: "Anastasia's mate",
+        kind: "pattern",
+        intro: "The knight guards the escape squares. The rook uses the open edge file.",
+        demoStart: [p("h7", "king", "dark"), p("g7", "pawn", "dark"), p("a1", "king", "soft"), p("e7", "knight", "soft"), p("h1", "rook", "soft")],
+        demoMoves: [
+          {
+            from: "h1",
+            to: "h3",
+            why: "Rook to h3 checks up the open h-file.",
+            risk: "Risky-or-not: the rook is far away, so the king cannot take it.",
+            check: "Check-or-not: yes, the rook checks up the h-file.",
+            mate: "Mate-or-not: mate. The knight covers g8 and g6; the pawn blocks g7."
+          }
+        ],
+        testStart: [p("h7", "king", "dark"), p("g7", "pawn", "dark"), p("a1", "king", "soft"), p("e7", "knight", "soft"), p("h1", "rook", "soft")],
+        answers: [{ from: "h1", to: "h3" }],
+        twinMove: { from: "h1", to: "h2" },
+        twin: "Rook to h2 sits on the file but does not check the king. Same cage, missing danger."
       },
       {
-        title: "checkmate idea",
-        body: "Tap the piece trapping the king.",
-        position: "mate",
-        targets: pieceTargets("mate", "queen", "soft"),
-        completeMode: "one"
+        id: "arabian",
+        title: "Arabian mate",
+        kind: "pattern",
+        intro: "The knight protects the rook. The rook checks the corner king.",
+        demoStart: [p("h8", "king", "dark"), p("a1", "king", "soft"), p("f6", "knight", "soft"), p("h1", "rook", "soft")],
+        demoMoves: [
+          {
+            from: "h1",
+            to: "h7",
+            why: "Rook to h7 checks the corner king from right below.",
+            risk: "Risky-or-not: the knight on f6 protects the rook.",
+            check: "Check-or-not: yes, the rook checks up the h-file.",
+            mate: "Mate-or-not: mate. The knight covers g8; the rook covers g7."
+          }
+        ],
+        testStart: [p("h8", "king", "dark"), p("a1", "king", "soft"), p("f6", "knight", "soft"), p("h1", "rook", "soft")],
+        answers: [{ from: "h1", to: "h7" }],
+        twinMove: { from: "h1", to: "g1" },
+        twin: "Rook to g1 does not check the corner. The knight is ready, but the rook has not closed the file."
       },
       {
-        title: "pawn after moving",
-        body: "Tap where the pawn on d3 can move.",
-        position: "pawnMoved",
-        targets: legalTargets("pawnMoved", "d3", "moves"),
-        completeMode: "one"
+        id: "boden",
+        title: "Boden's mate",
+        kind: "pattern",
+        intro: "Two bishops cross diagonals so the king has no clean corner left.",
+        demoStart: [p("h8", "king", "dark"), p("f7", "king", "soft"), p("e3", "bishop", "soft"), p("e4", "bishop", "soft")],
+        demoMoves: [
+          {
+            from: "e3",
+            to: "d4",
+            why: "Bishop to d4 creates the checking diagonal.",
+            risk: "Risky-or-not: nothing can take that bishop.",
+            check: "Check-or-not: yes, one bishop checks while the other covers h7.",
+            mate: "Mate-or-not: mate. The crossing diagonals and your king cover every escape."
+          }
+        ],
+        testStart: [p("h8", "king", "dark"), p("f7", "king", "soft"), p("e3", "bishop", "soft"), p("e4", "bishop", "soft")],
+        answers: [{ from: "e3", to: "d4" }],
+        twinMove: { from: "e4", to: "g6" },
+        twin: "One bishop closes an escape, but no bishop checks the king. That is the missing danger."
       },
       {
-        title: "castle king",
-        body: "Tap where the king ends up.",
-        position: "castle",
-        targets: specialTargets("castling", "g1"),
-        completeMode: "one"
-      },
-      {
-        title: "promote",
-        body: "Tap the square where the pawn promotes.",
-        position: "promotion",
-        targets: legalTargets("promotion", "g7", "moves"),
-        completeMode: "one"
-      },
-      {
-        title: "en passant",
-        body: "Tap where the soft pawn lands.",
-        position: "enPassant",
-        targets: specialTargets("en-passant", "d6"),
-        completeMode: "one"
-      },
-      {
-        title: "stalemate",
-        body: "Tap the stuck king that is not in check.",
-        position: "stalemate",
-        targets: pieceTargets("stalemate", "king", "dark"),
-        completeMode: "one"
-      },
-      {
-        title: "blocked road",
-        body: "Tap a piece that can jump at the start.",
-        position: "start",
-        targets: pieceTargets("start", "knight", "soft"),
-        completeMode: "one"
-      },
-      {
-        title: "pinned piece",
-        body: "Tap the piece that is stuck guarding the king.",
-        position: "pin",
-        targets: specialTargets("pin", "e2"),
-        completeMode: "one"
-      },
-      {
-        title: "answer check",
-        body: "Tap the square that could block the check.",
-        position: "checkOptions",
-        targets: specialTargets("check-escape", "e2"),
-        completeMode: "one"
-      },
-      {
-        title: "queen side castle",
-        body: "Tap where the king lands on the queen side.",
-        position: "castleQueen",
-        targets: specialTargets("queenside-castle", "c1"),
-        completeMode: "one"
-      },
-      {
-        title: "promotion choice",
-        body: "Tap the knight promotion option.",
-        position: "promotionChoices",
-        targets: specialTargets("promotion-choice", "g8"),
-        completeMode: "one"
-      },
-      {
-        title: "dead position",
-        body: "Tap both kings when only kings are left.",
-        position: "deadPosition",
-        targets: pieceTargets("deadPosition", "king"),
-        completeMode: "all"
+        id: "greco",
+        title: "Greco's mate",
+        kind: "pattern",
+        intro: "A bishop covers the escape. A rook checks on the open h-file.",
+        demoStart: [p("h8", "king", "dark"), p("g7", "pawn", "dark"), p("f2", "king", "soft"), p("c4", "bishop", "soft"), p("a1", "rook", "soft")],
+        demoMoves: [
+          {
+            from: "a1",
+            to: "h1",
+            why: "Rook to h1 opens the h-file check.",
+            risk: "Risky-or-not: nothing can take the rook on h1.",
+            check: "Check-or-not: yes, the rook checks up the h-file.",
+            mate: "Mate-or-not: mate. The bishop covers g8, and the dark pawn blocks g7."
+          }
+        ],
+        testStart: [p("h8", "king", "dark"), p("g7", "pawn", "dark"), p("f2", "king", "soft"), p("c4", "bishop", "soft"), p("a1", "rook", "soft")],
+        answers: [{ from: "a1", to: "h1" }],
+        twinMove: { from: "a1", to: "g1" },
+        twin: "Rook to g1 is nearby, but it does not check up the h-file. The bishop is ready; the rook chose the wrong file."
       }
     ];
+
+    const PRACTICE = MATING_DRILLS;
 
     const DEMOS = {
       goal: {
@@ -3504,6 +3678,12 @@
       practiceClean: true,
       practiceShowAnswer: false,
       practiceIndex: 0,
+      practiceMode: "menu",
+      practiceStep: 0,
+      practiceStepDone: false,
+      practiceSelected: null,
+      practiceHintLevel: 0,
+      completedDrills: {},
       difficulty: "easy",
       winsByDifficulty: { easy: 0, normal: 0, hard: 0 },
       upgradePrompt: false,
@@ -3518,6 +3698,7 @@
     let feedbackTimer = null;
     let botTimer = null;
     let hintFlashTimer = null;
+    let practiceFlashTimer = null;
 
     const app = document.getElementById("app");
     const layout = document.getElementById("layout");
@@ -3539,6 +3720,13 @@
         next.missCounts = {};
         next.feedback = "";
         next.practiceShowAnswer = false;
+        next.practiceMode = ["menu", "demo", "test", "twin"].includes(next.practiceMode) ? next.practiceMode : "menu";
+        next.practiceIndex = Number.isInteger(next.practiceIndex) && next.practiceIndex >= 0 && next.practiceIndex < PRACTICE.length ? next.practiceIndex : 0;
+        next.practiceStep = Number.isInteger(next.practiceStep) && next.practiceStep >= 0 ? next.practiceStep : 0;
+        next.practiceStepDone = false;
+        next.practiceSelected = null;
+        next.practiceHintLevel = 0;
+        next.completedDrills = next.completedDrills || {};
         next.difficulty = DIFFICULTIES.includes(next.difficulty) ? next.difficulty : "easy";
         next.playMode = PLAY_MODES.includes(next.playMode) ? next.playMode : "real";
         next.drillType = DRILL_TYPES[next.drillType] ? next.drillType : "rook";
@@ -3572,6 +3760,9 @@
         missCounts,
         feedback,
         practiceShowAnswer,
+        practiceSelected,
+        practiceStepDone,
+        practiceHintLevel,
         legendPhase,
         resetConfirm,
         aboutOpenPanel,
@@ -3632,6 +3823,10 @@
     function clearPracticeItem(index = state.practiceIndex) {
       clearQuestionState(`practice:${index}`);
       state.practiceShowAnswer = false;
+      state.practiceStep = 0;
+      state.practiceStepDone = false;
+      state.practiceSelected = null;
+      state.practiceHintLevel = 0;
     }
 
     function clearAllTransient() {
@@ -3664,6 +3859,16 @@
       }
       if (state.play && state.play.hintSquares && state.play.hintSquares.length) {
         state.play.hintSquares = [];
+      }
+    }
+
+    function clearPracticeFlash() {
+      if (practiceFlashTimer) {
+        window.clearTimeout(practiceFlashTimer);
+        practiceFlashTimer = null;
+      }
+      if (state.view === "practice") {
+        state.revealedByStep[`practice:${state.practiceIndex}`] = [];
       }
     }
 
@@ -3701,6 +3906,21 @@
           state.feedback = restoreMessage || "";
           render();
         }
+      }, 950);
+    }
+
+    function flashPracticeSquares(squaresToFlash, message, restoreMessage) {
+      clearPracticeFlash();
+      clearFlashFeedback();
+      const key = `practice:${state.practiceIndex}`;
+      state.revealedByStep[key] = squaresToFlash;
+      state.feedback = message;
+      render();
+      practiceFlashTimer = window.setTimeout(() => {
+        practiceFlashTimer = null;
+        state.revealedByStep[key] = [];
+        if (state.feedback === message) state.feedback = restoreMessage || "";
+        render();
       }, 950);
     }
 
@@ -3842,9 +4062,6 @@
           validateTargets(step.targets, `${lesson.id} step ${index + 1}`);
         });
       });
-      PRACTICE.forEach((item, index) => {
-        validateTargets(item.targets, `practice ${index + 1} ${item.title}`);
-      });
 
       if (errors.length) {
         throw new Error(`Curriculum target validation failed:\n${errors.join("\n")}`);
@@ -3917,6 +4134,78 @@
         throw new Error(`Game legality validation failed:\n${errors.join("\n")}`);
       }
       return { gameLegalityTests: 7 };
+    }
+
+    function validateMatingDrills() {
+      const errors = [];
+      const requiredIds = new Set([
+        "queen-box",
+        "rook-box",
+        "two-rooks",
+        "two-bishops",
+        "back-rank",
+        "smothered",
+        "anastasia",
+        "arabian",
+        "boden",
+        "greco"
+      ]);
+      const assert = (condition, label) => {
+        if (!condition) errors.push(label);
+      };
+      assert(MATING_DRILLS.length === 10, `expected 10 mating drills, got ${MATING_DRILLS.length}`);
+      MATING_DRILLS.forEach(drill => requiredIds.delete(drill.id));
+      assert(requiredIds.size === 0, `missing drills: ${Array.from(requiredIds).join(", ")}`);
+
+      let demoMoveCount = 0;
+      let patternDrills = 0;
+      let techniqueStalemates = 0;
+
+      MATING_DRILLS.forEach(drill => {
+        if (drill.kind === "pattern") patternDrills += 1;
+        assert(Array.isArray(drill.demoStart) && drill.demoStart.length >= 3, `${drill.id}: missing demo start`);
+        assert(Array.isArray(drill.testStart) && drill.testStart.length >= 3, `${drill.id}: missing test start`);
+        assert(Array.isArray(drill.demoMoves) && drill.demoMoves.length >= 1, `${drill.id}: missing demo moves`);
+        assert(Array.isArray(drill.answers) && drill.answers.length >= 1, `${drill.id}: missing test answer`);
+
+        let demoPosition = clonePosition(drill.demoStart || []);
+        (drill.demoMoves || []).forEach((move, index) => {
+          demoMoveCount += 1;
+          const legal = findPracticeMove(demoPosition, move.from, move.to);
+          assert(Boolean(legal), `${drill.id} demo ${index + 1}: illegal ${move.from}-${move.to}`);
+          if (!legal) return;
+          demoPosition = applyGameMoveSnapshot(practicePlay(demoPosition, "soft"), legal, "queen", true).position;
+          assert(Boolean(move.why && move.risk && move.check && move.mate), `${drill.id} demo ${index + 1}: missing checklist copy`);
+        });
+
+        (drill.answers || []).forEach(answer => {
+          const legal = findPracticeMove(drill.testStart, answer.from, answer.to);
+          assert(Boolean(legal), `${drill.id} test: illegal ${answer.from}-${answer.to}`);
+          if (!legal) return;
+          const after = applyGameMoveSnapshot(practicePlay(drill.testStart, "soft"), legal, "queen", true);
+          assert(after.result === "soft", `${drill.id} test: answer ${answer.from}-${answer.to} is not checkmate`);
+        });
+
+        const twin = drill.twinMove;
+        const twinPosition = clonePosition(drill.twinStart || drill.testStart || []);
+        if (twin) {
+          const legalTwin = findPracticeMove(twinPosition, twin.from, twin.to);
+          assert(Boolean(legalTwin), `${drill.id} twin: illegal ${twin.from}-${twin.to}`);
+          if (legalTwin && drill.kind === "technique") {
+            const afterTwin = applyGameMoveSnapshot(practicePlay(twinPosition, "soft"), legalTwin, "queen", true);
+            assert(afterTwin.result === "draw", `${drill.id} twin: expected stalemate draw`);
+            if (afterTwin.result === "draw") techniqueStalemates += 1;
+          }
+        } else {
+          errors.push(`${drill.id}: missing twin move`);
+        }
+      });
+
+      assert(patternDrills === 6, `expected 6 named pattern drills, got ${patternDrills}`);
+      if (errors.length) {
+        throw new Error(`Mating drill validation failed:\n${errors.join("\n")}`);
+      }
+      return { drills: MATING_DRILLS.length, patternDrills, demoMoveCount, techniqueStalemates };
     }
 
     function ruleKeyForItem(item) {
@@ -4145,8 +4434,305 @@
     function renderPracticeAvoidingButton(play) {
       if (!isRealGameStalemate(play)) return "";
       const type = drillTypeForStalemate(play.position);
-      const label = DRILL_TYPES[type] ? DRILL_TYPES[type].label : DRILL_TYPES.queen.label;
-      return `<button class="small-button" type="button" data-action="play-practice-stalemate">practice avoiding this: ${escapeHTML(label)}</button>`;
+      const drillId = type === "rook" ? "two-rooks" : "queen-box";
+      const drill = MATING_DRILLS.find(item => item.id === drillId) || MATING_DRILLS[0];
+      return `<button class="small-button" type="button" data-action="play-practice-stalemate" data-drill-id="${escapeHTML(drill.id)}">practice avoiding this: ${escapeHTML(drill.title)}</button>`;
+    }
+
+    function renderCoachCard(model) {
+      if (!model) return "";
+      const checklist = model.checklist && model.checklist.length
+        ? `<ul class="checklist">${model.checklist.map(item => `<li>${escapeHTML(item)}</li>`).join("")}</ul>`
+        : "";
+      return `
+        <section class="micro-card" data-coach-card="true">
+          ${model.meter || ""}
+          <div>
+            <p class="eyebrow">${escapeHTML(model.eyebrow || "coach")}</p>
+            <h2 class="micro-title">${escapeHTML(model.title || "next step")}</h2>
+            ${model.body ? `<p class="micro-body">${escapeHTML(model.body)}</p>` : ""}
+          </div>
+          ${checklist}
+          <div class="feedback" role="status">${escapeHTML(model.feedback || "")}</div>
+          ${model.actions || ""}
+        </section>
+      `;
+    }
+
+    function currentPracticeDrill() {
+      return PRACTICE[state.practiceIndex] || PRACTICE[0];
+    }
+
+    function movePieceName(position, move) {
+      const piece = pieceAtSquare(position, move.from);
+      return piece && PIECE_BY_ID[piece.piece] ? PIECE_BY_ID[piece.piece].name : "piece";
+    }
+
+    function moveForEngine(position, move) {
+      const piece = pieceAtSquare(position, move.from);
+      return { ...move, side: "soft", piece: piece ? piece.piece : move.piece };
+    }
+
+    function practicePlay(position, turn = "soft", extras = {}) {
+      return {
+        ...drillBasePlay(position, turn, {
+          playMode: "practice",
+          drillType: "practice",
+          ...extras
+        }),
+        castleRights: drillCastleRights()
+      };
+    }
+
+    function applyPracticeMove(position, move, withStatus = false) {
+      const play = practicePlay(position, "soft");
+      return applyGameMoveSnapshot(play, moveForEngine(position, move), "queen", withStatus);
+    }
+
+    function positionAfterPracticeMoves(drill, count) {
+      let position = clonePosition(drill.demoStart);
+      drill.demoMoves.slice(0, count).forEach(move => {
+        position = applyPracticeMove(position, move, false).position;
+      });
+      return position;
+    }
+
+    function currentPracticePosition() {
+      const drill = currentPracticeDrill();
+      if (state.practiceMode === "demo") {
+        const applied = state.practiceStep + (state.practiceStepDone ? 1 : 0);
+        return positionAfterPracticeMoves(drill, applied);
+      }
+      if (state.practiceMode === "test") return clonePosition(drill.testStart);
+      if (state.practiceMode === "twin") {
+        const position = clonePosition(drill.testStart);
+        return state.practiceStepDone ? applyPracticeMove(position, drill.twinMove, false).position : position;
+      }
+      return clonePosition(drill.testStart || drill.demoStart);
+    }
+
+    function currentPracticeMove() {
+      const drill = currentPracticeDrill();
+      if (state.practiceMode === "demo") return drill.demoMoves[state.practiceStep] || drill.demoMoves[0];
+      if (state.practiceMode === "twin") return drill.twinMove;
+      return null;
+    }
+
+    function moveResultChecklist(before, move, drillMove) {
+      const engineMove = moveForEngine(before, move);
+      const after = applyPracticeMove(before, move, true);
+      const darkPlay = { ...after, turn: "dark" };
+      const darkLegal = allLegalGameMoves(darkPlay, "dark");
+      const givesCheck = isKingInCheck(after.position, "dark");
+      const isMate = after.result === "soft";
+      const escapeText = darkLegal.length && givesCheck
+        ? ` The king still has ${darkLegal[0].to}.`
+        : "";
+      return [
+        `Why: ${drillMove.why || `${movePieceName(before, move)} to ${move.to} changes the cage.`}`,
+        drillMove.risk || `Risky-or-not: ${isSquareAttacked(after.position, move.to, "dark") ? "this square is under pressure, so check what protects it" : "nothing can take it right now"}.`,
+        drillMove.check || `Check-or-not: ${givesCheck ? `yes.${escapeText}` : "no, this move does not attack the king."}`,
+        drillMove.mate || `Mate-or-not: ${isMate ? "mate. The game ends." : "not mate yet."}`
+      ];
+    }
+
+    function isStalemateMove(position, move) {
+      const after = applyPracticeMove(position, move, true);
+      return after.result === "draw" && /^Stalemate\./.test(after.status || "");
+    }
+
+    function practicePrompt() {
+      const drill = currentPracticeDrill();
+      if (state.practiceMode === "demo") {
+        const move = currentPracticeMove();
+        return `Tap ${move.to}.`;
+      }
+      if (state.practiceMode === "test") return "Find mate. Tap your piece, then its landing square.";
+      if (state.practiceMode === "twin") return `Tap ${drill.twinMove.to}.`;
+      return "Choose a drill.";
+    }
+
+    function practiceHintMessage() {
+      const drill = currentPracticeDrill();
+      const answer = drill.answers[0];
+      if (!state.practiceHintLevel) return "";
+      if (state.practiceHintLevel === 1) return "Use the checklist: risky-or-not, check-or-not, mate-or-not.";
+      if (state.practiceHintLevel === 2) return `Look for the ${movePieceName(drill.testStart, answer)}.`;
+      return "The hint flashed. Try the move from memory.";
+    }
+
+    function getPracticeCoachMessage() {
+      const drill = currentPracticeDrill();
+      if (state.practiceMode === "menu") {
+        const done = Object.values(state.completedDrills || {}).filter(Boolean).length;
+        return {
+          eyebrow: "practice",
+          title: "mating curriculum",
+          body: "Practice is now only mating patterns. Pick Demo, Test, or Twin.",
+          feedback: state.feedback || `${done}/${PRACTICE.length} drills passed.`
+        };
+      }
+      if (state.practiceMode === "demo") {
+        const move = currentPracticeMove();
+        const before = positionAfterPracticeMoves(drill, state.practiceStep);
+        return {
+          eyebrow: `demo ${state.practiceStep + 1}/${drill.demoMoves.length}`,
+          title: state.practiceStepDone ? "checklist" : drill.title,
+          body: state.practiceStepDone ? "Same checklist every move." : `Guided move: tap ${move.to}.`,
+          checklist: state.practiceStepDone ? moveResultChecklist(before, move, move) : [],
+          feedback: state.feedback || (state.practiceStepDone ? "Press next for the next move." : practicePrompt()),
+          actions: `
+            <div class="action-row">
+              <button class="small-button" type="button" data-action="practice-menu">menu</button>
+              <button class="primary-button" type="button" data-action="practice-next-step" ${state.practiceStepDone ? "" : "disabled"}>${state.practiceStep >= drill.demoMoves.length - 1 ? "finish demo" : "next"}</button>
+            </div>
+          `
+        };
+      }
+      if (state.practiceMode === "test") {
+        const passed = Boolean(state.practiceStepDone && state.completedDrills && state.completedDrills[drill.id]);
+        return {
+          eyebrow: "test",
+          title: passed ? "passed" : drill.title,
+          body: passed ? "You found the mate. You can repeat this any time." : "The answer is not shown. The structure stays here.",
+          checklist: passed ? ["Why: the move gave check.", "Risky-or-not: the mating piece was safe enough.", "Check-or-not: yes.", "Mate-or-not: mate."] : [],
+          feedback: state.feedback || practiceHintMessage() || (state.practiceSelected ? "Now tap the landing square." : practicePrompt()),
+          actions: `
+            <div class="action-row three">
+              <button class="small-button" type="button" data-action="practice-menu">menu</button>
+              <button class="small-button" type="button" data-action="practice-hint" ${passed ? "disabled" : ""}>hint</button>
+              <button class="primary-button" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(drill.id)}" data-practice-mode="twin">twin</button>
+            </div>
+          `
+        };
+      }
+      return {
+        eyebrow: "stalemate twin",
+        title: state.practiceStepDone ? "why it goes wrong" : drill.title,
+        body: state.practiceStepDone ? "This is the mistake pattern on the same kind of board." : `Guided wrong move: tap ${drill.twinMove.to}.`,
+        checklist: state.practiceStepDone ? [
+          `Why: ${drill.twin}`,
+          "Risky-or-not: the problem is not losing the piece.",
+          "Check-or-not: no. That is the missing ingredient.",
+          "Mate-or-not: not mate. It is the stale shape to avoid."
+        ] : [],
+        feedback: state.feedback || (state.practiceStepDone ? "Twin complete. Go back or test again." : practicePrompt()),
+        actions: `
+          <div class="action-row">
+            <button class="small-button" type="button" data-action="practice-menu">menu</button>
+            <button class="primary-button" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(drill.id)}" data-practice-mode="test">test</button>
+          </div>
+        `
+      };
+    }
+
+    function getPlayCoachMessage() {
+      const play = ensurePlayState();
+      if (state.upgradePrompt && nextDifficulty()) {
+        const next = nextDifficulty();
+        return {
+          eyebrow: "level up",
+          title: `try ${next}?`,
+          body: `You won ${WIN_UPGRADE_TARGET} games on ${state.difficulty}.`,
+          feedback: "You can make the bot harder now.",
+          actions: `
+            <div class="action-row">
+              <button class="primary-button" type="button" data-action="upgrade-difficulty">upgrade</button>
+              <button class="small-button" type="button" data-action="dismiss-upgrade">later</button>
+            </div>
+          `
+        };
+      }
+      if (play.result) {
+        return {
+          eyebrow: "game over",
+          title: play.result === "soft" ? "you won" : play.result === "bot" ? "bot won" : "draw",
+          body: play.status,
+          feedback: play.message || play.status,
+          actions: `
+            <div class="play-controls">
+              <button class="primary-button" type="button" data-action="play-new">new game</button>
+              ${renderPracticeAvoidingButton(play)}
+            </div>
+          `
+        };
+      }
+      if (!play.coachOn) return null;
+      return {
+        eyebrow: "coach",
+        title: play.askMode ? "ask mode on" : "on demand",
+        body: play.coachMessage || "Use hints only when you want them. Ask mode lets you tap any piece to ask what it does.",
+        feedback: play.message || play.status,
+        actions: `
+          <div class="play-controls">
+            <button class="primary-button" type="button" data-action="play-hint" ${play.turn !== "soft" || play.result ? "disabled" : ""}>
+              ${play.hintLevel ? `hint ${Math.min(play.hintLevel + 1, 3)}` : "hint"}
+            </button>
+            <button class="small-button" type="button" data-action="play-ask" aria-pressed="${play.askMode}">
+              ${play.askMode ? "move mode" : "ask mode"}
+            </button>
+            <button class="small-button" type="button" data-action="play-new">new game</button>
+          </div>
+        `
+      };
+    }
+
+    function getCoachMessage() {
+      if (state.view === "lessons") {
+        if (allLessonsPassed() && state.lessonMode === "complete") {
+          return {
+            eyebrow: "next",
+            title: "choose what to do",
+            body: "Practice is mating patterns now. Play starts a real game.",
+            feedback: state.feedback || "Choose the next section.",
+            actions: `
+              <div class="action-row three">
+                <button class="small-button" type="button" data-action="review-lessons">review</button>
+                <button class="primary-button" type="button" data-action="go-practice">practice</button>
+                <button class="small-button" type="button" data-action="go-play">play</button>
+              </div>
+            `
+          };
+        }
+        if (state.lessonMode === "demo") {
+          return {
+            eyebrow: "watch first",
+            title: "demo",
+            body: "Just looking. Nothing to get right yet. Look at the map and highlighted squares before the test.",
+            feedback: state.feedback || "When this makes sense, start the test.",
+            actions: `
+              <div class="action-row">
+                <button class="small-button" type="button" data-action="focus">${state.focusMode ? "show all" : "focus"}</button>
+                <button class="primary-button" type="button" data-action="start-test">start test</button>
+              </div>
+            `
+          };
+        }
+        const lesson = currentLesson();
+        const step = currentStep();
+        const key = currentStepKey();
+        const found = getFoundSet(key);
+        const answerShown = currentAnswerWasShown(key);
+        const stepReady = isStepPassed(step, found, key);
+        const bodyText = (state.missCounts[key] || 0) >= 3 ? alternateBody(step) : step.body;
+        return {
+          eyebrow: `tiny step ${state.stepIndex + 1}/${lesson.steps.length}`,
+          title: step.title,
+          body: bodyText,
+          feedback: state.feedback || step.prompt || "Tap the board when the step asks you to.",
+          actions: `
+            <div class="action-row three">
+              <button class="small-button" type="button" data-action="back" ${state.stepIndex === 0 ? "disabled" : ""}>back</button>
+              <button class="small-button" type="button" data-action="answer">${answerShown ? "hide answer" : "show answer"}</button>
+              <button class="primary-button" type="button" data-action="next" ${stepReady ? "" : "disabled"}>${state.stepIndex === lesson.steps.length - 1 ? "finish" : "next"}</button>
+            </div>
+            <button class="small-button" type="button" data-action="retry-step" ${found.size || answerShown || getRevealSet(key).size ? "" : "disabled"}>reset question</button>
+          `
+        };
+      }
+      if (state.view === "practice") return getPracticeCoachMessage();
+      if (state.view === "play") return getPlayCoachMessage();
+      return null;
     }
 
     function allLessonsPassed() {
@@ -4426,18 +5012,7 @@
             position: "start"
           })}
         `;
-        coach.innerHTML = `
-          <section class="micro-card">
-            <p class="eyebrow">next</p>
-            <h2 class="micro-title">choose what to do</h2>
-            <p class="micro-body">Practice asks tiny questions. Play starts a real game.</p>
-            <div class="action-row three">
-              <button class="small-button" type="button" data-action="review-lessons">review</button>
-              <button class="primary-button" type="button" data-action="go-practice">practice</button>
-              <button class="small-button" type="button" data-action="go-play">play</button>
-            </div>
-          </section>
-        `;
+        coach.innerHTML = renderCoachCard(getCoachMessage());
         return;
       }
       if (state.lessonMode === "demo") {
@@ -4466,24 +5041,7 @@
           })}
         `;
 
-        coach.innerHTML = `
-          <section class="micro-card">
-            <div>
-              <p class="eyebrow">watch first</p>
-              <h2 class="micro-title">demo</h2>
-            <p class="micro-body">Just looking. Nothing to get right yet. Look at the map and highlighted squares before the test.</p>
-            </div>
-            <div class="feedback" role="status">${escapeHTML(state.feedback || "When this makes sense, start the test.")}</div>
-            <div class="action-row">
-              <button class="small-button" type="button" data-action="focus">${state.focusMode ? "show all" : "focus"}</button>
-              <button class="primary-button" type="button" data-action="start-test">start test</button>
-            </div>
-          </section>
-          <section class="micro-card">
-            <p class="eyebrow">piece guide</p>
-            ${renderLegendCards(false)}
-          </section>
-        `;
+        coach.innerHTML = renderCoachCard(getCoachMessage());
         return;
       }
 
@@ -4508,30 +5066,7 @@
         })}
       `;
 
-      coach.innerHTML = `
-        <section class="micro-card">
-          <div class="step-meter">
-            <div class="meter-track" aria-hidden="true"><div class="meter-fill" style="width:${meter}%"></div></div>
-            <span class="step-count">${state.stepIndex + 1}/${lesson.steps.length}</span>
-          </div>
-          <div>
-            <p class="eyebrow">tiny step</p>
-            <h2 class="micro-title">${escapeHTML(step.title)}</h2>
-            <p class="micro-body">${escapeHTML(bodyText)}</p>
-          </div>
-          <div class="feedback" role="status">${escapeHTML(state.feedback || step.prompt || "Tap the board when the step asks you to.")}</div>
-          <div class="action-row three">
-            <button class="small-button" type="button" data-action="back" ${state.stepIndex === 0 ? "disabled" : ""}>back</button>
-            <button class="small-button" type="button" data-action="answer">${answerShown ? "hide answer" : "show answer"}</button>
-            <button class="primary-button" type="button" data-action="next" ${stepReady ? "" : "disabled"}>${state.stepIndex === lesson.steps.length - 1 ? "finish" : "next"}</button>
-          </div>
-          <button class="small-button" type="button" data-action="retry-step" ${found.size || answerShown || revealed.size ? "" : "disabled"}>reset question</button>
-        </section>
-        <section class="micro-card">
-          <p class="eyebrow">piece guide</p>
-          ${renderLegendCards(false)}
-        </section>
-      `;
+      coach.innerHTML = renderCoachCard(getCoachMessage());
     }
 
     function renderLegendView() {
@@ -4566,57 +5101,74 @@
             <p class="plain-text">Next lesson to pass: ${escapeHTML(nextLesson.label)}.</p>
           </section>
         `;
-        coach.innerHTML = `
-          <section class="micro-card">
-            <p class="eyebrow">next step</p>
-            <h2 class="micro-title">${escapeHTML(nextLesson.title)}</h2>
-            <p class="micro-body">Go back to lessons and pass this test first.</p>
-            <button class="primary-button" type="button" data-action="go-needed-lesson">go to lesson</button>
-          </section>
-        `;
+        coach.innerHTML = renderCoachCard({
+          eyebrow: "next step",
+          title: nextLesson.title,
+          body: "Go back to lessons and pass this test first.",
+          feedback: "Practice opens after the lesson path.",
+          actions: `<button class="primary-button" type="button" data-action="go-needed-lesson">go to lesson</button>`
+        });
         return;
       }
 
-      const item = PRACTICE[state.practiceIndex] || PRACTICE[0];
+      const item = currentPracticeDrill();
       const key = `practice:${state.practiceIndex}`;
-      const found = getFoundSet(key);
       const revealed = getRevealSet(key);
-      const ready = isStepReady(item, found);
-      const showTargets = state.practiceShowAnswer;
-      const bodyText = (state.missCounts[key] || 0) >= 3 ? alternateBody(item) : item.body;
 
       stageLabel.textContent = "practice";
-      stage.innerHTML = `
-        ${renderBoard({
-          position: item.position,
-          targets: item.targets,
-          highlights: revealed,
-          found,
-          selected: found,
-          showTargets
-        })}
-      `;
-
-      coach.innerHTML = `
-        <section class="micro-card">
-          <p class="eyebrow">practice ${state.practiceIndex + 1}/${PRACTICE.length}</p>
-          <h2 class="micro-title">${escapeHTML(item.title)}</h2>
-          <p class="micro-body">${escapeHTML(bodyText)}</p>
-          <div class="feedback" role="status">${escapeHTML(state.feedback || "Tap the answer on the board.")}</div>
-          <div class="action-row three">
-            <button class="small-button" type="button" data-action="practice-reset">reset</button>
-            <button class="small-button" type="button" data-action="practice-answer">${state.practiceShowAnswer ? "hide answer" : "show answer"}</button>
-            <button class="primary-button" type="button" data-action="practice-next" ${ready ? "" : "disabled"}>next</button>
-          </div>
-          <button class="small-button" type="button" data-action="toggle-practice-clean">${state.practiceClean ? "show guide" : "hide guide"}</button>
-        </section>
-        ${state.practiceClean ? "" : `
-          <section class="micro-card">
-            <p class="eyebrow">piece guide</p>
-            ${renderLegendCards(false)}
+      if (state.practiceMode === "menu") {
+        stage.innerHTML = `
+          <section class="macro-card">
+            <div>
+              <p class="eyebrow">practice</p>
+              <h2 class="macro-title">mate patterns</h2>
+              <p class="plain-text">Each drill has a guided demo, a test, and a stalemate twin.</p>
+            </div>
           </section>
-        `}
-      `;
+          <section class="drill-list">
+            ${PRACTICE.map((drill, index) => {
+              const done = Boolean(state.completedDrills && state.completedDrills[drill.id]);
+              return `
+                <article class="drill-card ${done ? "is-done" : ""}">
+                  <div class="drill-card-head">
+                    <span class="drill-number">${String(index + 1).padStart(2, "0")}</span>
+                    <div>
+                      <h2 class="drill-title">${escapeHTML(drill.title)}</h2>
+                      <p class="drill-body">${escapeHTML(drill.intro)}</p>
+                    </div>
+                    <span class="drill-status">${done ? "done" : drill.kind}</span>
+                  </div>
+                  <div class="action-row three">
+                    <button class="small-button" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(drill.id)}" data-practice-mode="demo">demo</button>
+                    <button class="primary-button" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(drill.id)}" data-practice-mode="test">test</button>
+                    <button class="small-button" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(drill.id)}" data-practice-mode="twin">twin</button>
+                  </div>
+                </article>
+              `;
+            }).join("")}
+          </section>
+        `;
+      } else {
+        const selected = state.practiceSelected ? new Set([state.practiceSelected]) : new Set();
+        stage.innerHTML = `
+          <section class="macro-card">
+            <div>
+              <p class="eyebrow">${escapeHTML(state.practiceMode)}</p>
+              <h2 class="macro-title">${escapeHTML(item.title)}</h2>
+              <p class="plain-text">${escapeHTML(item.intro)}</p>
+            </div>
+          </section>
+          ${renderBoard({
+            positionItems: currentPracticePosition(),
+            highlights: revealed,
+            selected,
+            legal: [],
+            lastMove: []
+          })}
+        `;
+      }
+
+      coach.innerHTML = renderCoachCard(getCoachMessage());
     }
 
     function renderAbout() {
@@ -4664,87 +5216,42 @@
             <p class="plain-text">Next lesson to pass: ${escapeHTML(nextLesson.label)}.</p>
           </section>
         `;
-        coach.innerHTML = `
-          <section class="micro-card">
-            <p class="eyebrow">next step</p>
-            <h2 class="micro-title">${escapeHTML(nextLesson.title)}</h2>
-            <p class="micro-body">Go back to lessons and pass this test first.</p>
-            <button class="primary-button" type="button" data-action="go-needed-lesson">go to lesson</button>
-          </section>
-        `;
+        coach.innerHTML = renderCoachCard({
+          eyebrow: "next step",
+          title: nextLesson.title,
+          body: "Go back to lessons and pass this test first.",
+          actions: `<button class="primary-button" type="button" data-action="go-needed-lesson">go to lesson</button>`
+        });
         return;
       }
 
       const play = ensurePlayState();
-      const mode = play.playMode || state.playMode || "real";
-      const isDrill = mode === "drill";
-      const drill = DRILL_TYPES[play.drillType] || DRILL_TYPES.rook;
-      layout.classList.toggle("coach-off", !isDrill && !play.coachOn && !play.result && !state.upgradePrompt);
       const selected = play.selected ? new Set([play.selected]) : new Set();
       const highlights = new Set(play.hintSquares || []);
+      const coachModel = getCoachMessage();
+      layout.classList.toggle("coach-off", !coachModel);
       stageLabel.textContent = "play";
       stage.innerHTML = `
         <section class="macro-card">
           <div>
-            <p class="eyebrow">${isDrill ? "mating drill" : "real game"}</p>
-            <h2 class="macro-title">${isDrill ? escapeHTML(drill.label) : play.turn === "soft" ? "your move" : "bot move"}</h2>
+            <p class="eyebrow">real game</p>
+            <h2 class="macro-title">${play.turn === "soft" ? "your move" : "bot move"}</h2>
             <p class="plain-text">${escapeHTML(play.message || play.status)}</p>
           </div>
           <button class="focus-toggle" type="button" aria-pressed="${play.coachOn}" data-action="play-coach-toggle">
             ${play.coachOn ? "coach off" : "coach on"}
           </button>
         </section>
-        ${renderPlayModeControls(play)}
         ${renderBoard({
           positionItems: play.position,
           selected,
-          legal: [],
+          legal: play.coachOn && play.askMode ? play.legal : [],
           highlights,
           lastMove: []
         })}
         ${play.pendingPromotion ? renderPromotionChooser() : ""}
       `;
-
-      if (!isDrill && !play.coachOn && !play.result && !state.upgradePrompt) {
-        coach.innerHTML = "";
-        return;
-      }
-
-      coach.innerHTML = `
-        ${renderUpgradeCard()}
-        ${isDrill ? renderDrillCoachCard(play) : ""}
-        ${play.result ? `
-          <section class="micro-card">
-            <p class="eyebrow">game over</p>
-            <h2 class="micro-title">${play.result === "soft" ? "you won" : play.result === "bot" ? "bot won" : "draw"}</h2>
-            <p class="micro-body">${escapeHTML(play.status)}</p>
-            <div class="play-controls">
-              <button class="primary-button" type="button" data-action="play-new">${isDrill ? "fresh drill" : "new game"}</button>
-              ${renderPracticeAvoidingButton(play)}
-            </div>
-          </section>
-        ` : ""}
-        ${play.coachOn ? `<section class="micro-card">
-          <p class="eyebrow">coach</p>
-          <h2 class="micro-title">${play.askMode ? "ask mode on" : "on demand"}</h2>
-          <p class="micro-body">${escapeHTML(play.coachMessage || "Use hints only when you want them. Ask mode lets you tap any piece to ask what it does.")}</p>
-          <div class="feedback" role="status">${escapeHTML(play.status)}</div>
-          <div class="play-controls">
-            <button class="primary-button" type="button" data-action="play-hint" ${play.turn !== "soft" || play.result ? "disabled" : ""}>
-              ${play.hintLevel ? `hint ${Math.min(play.hintLevel + 1, 3)}` : "hint"}
-            </button>
-            <button class="small-button" type="button" data-action="play-ask" aria-pressed="${play.askMode}">
-              ${play.askMode ? "move mode" : "ask mode"}
-            </button>
-            <button class="small-button" type="button" data-action="play-new">new game</button>
-          </div>
-        </section>` : ""}
-        ${play.pendingPromotion ? renderPromotionChooser() : ""}
-        ${play.coachOn ? `<section class="micro-card">
-          <p class="eyebrow">tiny reminder</p>
-          <p class="micro-body">Tap your piece first. Then pick the square you want. The board stays clean unless you ask for a hint.</p>
-        </section>` : ""}
-      `;
+      coach.innerHTML = renderCoachCard(coachModel);
     }
 
     function render() {
@@ -4789,7 +5296,7 @@
         botTimer = null;
         const current = ensurePlayState();
         if (current.turn !== "dark" || current.result) return;
-        const move = current.playMode === "drill" ? chooseDrillBotMove(current) : chooseBotMove(current);
+        const move = chooseBotMove(current);
         if (!move) {
           state.play = updatePlayStatus({ ...current, busy: false });
         } else {
@@ -4807,7 +5314,7 @@
       state.play.message = move.castle
         ? "You castled. The king slid toward the rook, and the rook tucked beside him."
         : `You moved ${describeMove({ ...move, piece: promotionChoice === "queen" && move.piece === "pawn" && Number(move.to[1]) === 8 ? "queen" : move.piece })}.`;
-      if (state.play.result === "soft" && state.play.playMode !== "drill") recordSoftWin();
+      if (state.play.result === "soft") recordSoftWin();
       render();
       queueBotMove();
     }
@@ -4832,15 +5339,37 @@
 
       const tappedPiece = pieceAtSquare(play.position, square);
       if (play.coachOn && play.askMode) {
+        if (play.selected) {
+          const legalMoves = legalGameMovesForSquare(play, play.selected);
+          const move = legalMoves.find(item => item.to === square);
+          if (move) {
+            if (moveNeedsPromotion(play, move)) {
+              play.pendingPromotion = move;
+              play.message = "Your pawn reached the last row. Choose what it becomes.";
+              play.legal = [move.to];
+              render();
+              return;
+            }
+            completePlayMove(move);
+            return;
+          }
+        }
         const answer = describePieceForCoach(play, square);
         play.coachMessage = answer.message;
-        play.message = "Coach answered. Ask another piece, or switch back to move mode.";
-        if (answer.squares.length) {
-          startHintFlash([square, ...answer.squares]);
-        } else {
+        if (tappedPiece && tappedPiece.side === "soft") {
+          play.selected = square;
+          play.legal = answer.squares;
           play.hintSquares = [];
+          play.message = answer.squares.length
+            ? "Coach answered. Tap one highlighted square to move, or tap another piece to ask."
+            : "Coach answered. This piece has no legal move right now.";
+        } else {
+          play.selected = null;
+          play.legal = [];
+          play.hintSquares = [];
+          play.message = "Coach answered. Ask another piece, or tap your own piece to move it.";
         }
-        if (!answer.squares.length) render();
+        render();
         return;
       }
 
@@ -4894,6 +5423,153 @@
       render();
     }
 
+    function practiceMoveMatches(expected, move) {
+      return Boolean(expected && move && expected.from === move.from && expected.to === move.to);
+    }
+
+    function findPracticeMove(position, fromSquare, toSquare) {
+      const play = practicePlay(position, "soft");
+      return legalGameMovesForSquare(play, fromSquare).find(move => move.to === toSquare) || null;
+    }
+
+    function setPracticePhase(drillId, mode = "demo") {
+      const index = PRACTICE.findIndex(drill => drill.id === drillId);
+      state.practiceIndex = index >= 0 ? index : 0;
+      state.practiceMode = ["menu", "demo", "test", "twin"].includes(mode) ? mode : "demo";
+      state.practiceStep = 0;
+      state.practiceStepDone = false;
+      state.practiceSelected = null;
+      state.practiceHintLevel = 0;
+      state.feedback = "";
+      clearPracticeItem(state.practiceIndex);
+    }
+
+    function startPracticePhase(drillId, mode = "demo", feedback = "") {
+      setPracticePhase(drillId, mode);
+      state.feedback = feedback;
+      render();
+      scrollStageIntoView();
+    }
+
+    function completePracticeStep() {
+      const drill = currentPracticeDrill();
+      if (state.practiceMode !== "demo") return;
+      if (!state.practiceStepDone) {
+        state.feedback = "Tap the square first.";
+        render();
+        return;
+      }
+      if (state.practiceStep < drill.demoMoves.length - 1) {
+        state.practiceStep += 1;
+        state.practiceStepDone = false;
+        state.feedback = "";
+        render();
+        return;
+      }
+      state.practiceMode = "test";
+      state.practiceStep = 0;
+      state.practiceStepDone = false;
+      state.practiceSelected = null;
+      state.practiceHintLevel = 0;
+      state.feedback = "Demo complete. Try the test with the same checklist.";
+      render();
+    }
+
+    function handlePracticeSquare(square) {
+      clearPracticeFlash();
+      if (!allLessonsPassed()) {
+        state.feedback = "Practice opens after the lessons.";
+        render();
+        return;
+      }
+      if (state.practiceMode === "menu") {
+        state.feedback = "Choose Demo, Test, or Twin first.";
+        render();
+        return;
+      }
+
+      const drill = currentPracticeDrill();
+      if (state.practiceMode === "demo" || state.practiceMode === "twin") {
+        if (state.practiceStepDone) {
+          state.feedback = state.practiceMode === "demo" ? "Press next for the next move." : "Twin complete. Pick test or menu.";
+          render();
+          return;
+        }
+        const expected = currentPracticeMove();
+        if (!expected || square !== expected.to) {
+          flashFeedback("No, not that one.", practicePrompt());
+          return;
+        }
+        state.practiceStepDone = true;
+        state.practiceSelected = null;
+        state.feedback = state.practiceMode === "demo" ? "Good. Read the checklist." : "Good. This is the mistake shape.";
+        render();
+        return;
+      }
+
+      const position = currentPracticePosition();
+      const tappedPiece = pieceAtSquare(position, square);
+      if (!state.practiceSelected) {
+        if (!tappedPiece || tappedPiece.side !== "soft") {
+          flashFeedback("No, not that one.", practicePrompt());
+          return;
+        }
+        const legalMoves = legalGameMovesForSquare(practicePlay(position, "soft"), square);
+        if (!legalMoves.length) {
+          state.feedback = "That piece has no legal move right now. Pick another soft pink piece.";
+          render();
+          return;
+        }
+        state.practiceSelected = square;
+        state.feedback = "Now tap the landing square.";
+        render();
+        return;
+      }
+
+      if (tappedPiece && tappedPiece.side === "soft" && tappedPiece.square !== state.practiceSelected) {
+        state.practiceSelected = square;
+        state.feedback = "Switched piece. Now tap its landing square.";
+        render();
+        return;
+      }
+
+      const move = findPracticeMove(position, state.practiceSelected, square);
+      if (!move) {
+        const play = practicePlay(position, "soft");
+        state.feedback = explainIllegalMove(play, state.practiceSelected, square);
+        state.practiceSelected = null;
+        render();
+        return;
+      }
+      if (isStalemateMove(position, move)) {
+        state.practiceSelected = null;
+        state.feedback = "Stalemate caught. Risky-or-not: the piece is not the issue. Check-or-not: no check. Mate-or-not: not mate, because the king is stuck but not attacked.";
+        render();
+        return;
+      }
+
+      const isAnswer = drill.answers.some(answer => practiceMoveMatches(answer, move));
+      const after = applyGameMoveSnapshot(practicePlay(position, "soft"), move, "queen", true);
+      if (isAnswer && after.result === "soft") {
+        state.completedDrills = { ...(state.completedDrills || {}), [drill.id]: true };
+        state.practiceStepDone = true;
+        state.practiceSelected = null;
+        state.feedback = "Checkmate. Drill passed.";
+        render();
+        return;
+      }
+
+      state.practiceSelected = null;
+      if (after.result === "draw") {
+        state.feedback = "That would draw. Check-or-not: no check. Try again with a move that attacks the king.";
+      } else if (isKingInCheck(after.position, "dark")) {
+        state.feedback = "That gives check, but it is not mate yet. The test asks for the finishing move.";
+      } else {
+        state.feedback = "That move is legal, but it does not trap the king. Use the checklist and try again.";
+      }
+      render();
+    }
+
     function handleSquare(square) {
       clearFlashFeedback();
       if (state.view === "lessons") {
@@ -4928,22 +5604,7 @@
       }
 
       if (state.view === "practice") {
-        const item = PRACTICE[state.practiceIndex] || PRACTICE[0];
-        const key = `practice:${state.practiceIndex}`;
-        const found = getFoundSet(key);
-        if (item.targets.includes(square)) {
-          found.add(square);
-          setFoundSet(found, key);
-          state.missCounts[key] = 0;
-          const ready = isStepReady(item, found);
-          setRevealSet(ready ? answerFamilyForItem(item) : [], key);
-          state.feedback = ready ? correctFeedback(item, square) : "Good. Keep going.";
-        } else {
-          state.missCounts[key] = (state.missCounts[key] || 0) + 1;
-          flashFeedback("No, not that one.", promptFor(item, "Tap the answer on the board."));
-          return;
-        }
-        render();
+        handlePracticeSquare(square);
         return;
       }
 
@@ -5090,30 +5751,46 @@
         state.feedback = "";
         render();
       }
-      if (action === "practice-reset") {
+      if (action === "start-practice-phase") {
+        const mode = actionButton.dataset.practiceMode || "demo";
+        const drillId = actionButton.dataset.drillId || currentPracticeDrill().id;
+        startPracticePhase(drillId, mode);
+      }
+      if (action === "practice-menu") {
+        clearPracticeFlash();
         clearPracticeItem(state.practiceIndex);
+        state.practiceMode = "menu";
         state.feedback = "";
         render();
       }
-      if (action === "practice-answer") {
-        if (state.practiceShowAnswer) {
-          clearPracticeItem(state.practiceIndex);
-          state.feedback = "";
+      if (action === "practice-next-step") {
+        completePracticeStep();
+      }
+      if (action === "practice-hint") {
+        if (state.practiceMode !== "test") return;
+        const drill = currentPracticeDrill();
+        const answer = drill.answers[0];
+        state.practiceHintLevel = Math.min(3, (state.practiceHintLevel || 0) + 1);
+        if (state.practiceHintLevel >= 3) {
+          state.practiceHintLevel = 3;
+          flashPracticeSquares([answer.from, answer.to], "Watch the hint flash.", "The flash is gone. Try the move from memory.");
         } else {
-          const key = `practice:${state.practiceIndex}`;
-          state.foundByStep[key] = [];
-          state.revealedByStep[key] = [];
-          state.practiceShowAnswer = true;
-          state.feedback = "Answer is showing.";
+          state.feedback = practiceHintMessage();
+          render();
         }
+      }
+      if (action === "practice-reset") {
+        startPracticePhase(currentPracticeDrill().id, state.practiceMode === "menu" ? "demo" : state.practiceMode);
+      }
+      if (action === "practice-answer") {
+        const drill = currentPracticeDrill();
+        const answer = drill.answers[0];
+        flashPracticeSquares([answer.from, answer.to], "Watch the answer flash.", "The flash is gone. Try the move from memory.");
         render();
       }
       if (action === "practice-next") {
-        clearPracticeItem(state.practiceIndex);
-        state.practiceIndex = (state.practiceIndex + 1) % PRACTICE.length;
-        clearPracticeItem(state.practiceIndex);
-        state.feedback = "";
-        render();
+        const next = PRACTICE[(state.practiceIndex + 1) % PRACTICE.length];
+        startPracticePhase(next.id, "demo");
       }
       if (action === "toggle-practice-clean") {
         state.practiceClean = !state.practiceClean;
@@ -5133,6 +5810,7 @@
         clearAllTransient();
         state.view = "practice";
         state.practiceIndex = 0;
+        state.practiceMode = "menu";
         render();
       }
       if (action === "go-play") {
@@ -5192,7 +5870,7 @@
           state.difficulty = next;
           state.upgradePrompt = false;
           state.playMode = "real";
-          state.play = newPlayState("real");
+          state.play = newPlayState();
           state.view = "play";
           render();
         }
@@ -5202,42 +5880,31 @@
         render();
       }
       if (action === "set-play-mode") {
-        const mode = actionButton.dataset.playMode;
-        if (PLAY_MODES.includes(mode)) {
-          clearBotMove();
-          clearHintFlash();
-          state.playMode = mode;
-          state.drillType = DRILL_TYPES[state.drillType] ? state.drillType : "rook";
-          state.play = newPlayState(state.playMode, state.drillType);
-          render();
-        }
+        clearBotMove();
+        clearHintFlash();
+        state.playMode = "real";
+        state.play = newPlayState();
+        render();
       }
       if (action === "set-drill-type") {
-        const type = actionButton.dataset.drillType;
-        if (DRILL_TYPES[type]) {
-          clearBotMove();
-          clearHintFlash();
-          state.playMode = "drill";
-          state.drillType = type;
-          state.play = newPlayState("drill", type);
-          render();
-        }
+        state.feedback = "Mating drills live in Practice now.";
+        render();
       }
       if (action === "play-practice-stalemate") {
         clearBotMove();
         clearHintFlash();
-        const play = ensurePlayState();
-        const type = drillTypeForStalemate(play.position);
-        state.playMode = "drill";
-        state.drillType = type;
-        state.play = newPlayState("drill", type);
+        const drillId = actionButton.dataset.drillId || "queen-box";
+        state.view = "practice";
+        setPracticePhase(drillId, "test");
+        state.feedback = "Practice the safe finish from here.";
         render();
         scrollStageIntoView();
       }
       if (action === "play-new") {
         clearBotMove();
         clearHintFlash();
-        state.play = newPlayState(state.playMode, state.drillType);
+        state.playMode = "real";
+        state.play = newPlayState();
         render();
       }
       if (action === "play-coach-toggle") {
@@ -5308,13 +5975,22 @@
       allLegalGameMoves,
       validateCurriculumTargets,
       validateGameLegality,
+      validateMatingDrills,
+      MATING_DRILLS,
+      LESSONS,
       validateDrillPositions,
       generateDrillPosition,
       isValidDrillPosition,
       drillTypeForStalemate,
       applyGameMoveSnapshot,
       updatePlayStatus,
-      isKingInCheck
+      isKingInCheck,
+      playMaterialPhase,
+      getState: () => JSON.parse(JSON.stringify(state)),
+      setState: patch => {
+        state = { ...state, ...patch };
+        render();
+      }
     };
 
     window.setInterval(() => {
