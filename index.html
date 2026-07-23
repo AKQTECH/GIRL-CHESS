@@ -1187,7 +1187,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "Girl Chess v4.2";
+    const APP_VERSION = "Girl Chess v4.3";
     const STORAGE_KEY = "girl-chess-progress-v1";
     const DIFFICULTIES = ["easy", "normal", "hard"];
     const WIN_UPGRADE_TARGET = 2;
@@ -1919,6 +1919,15 @@
       return `Stalemate. That last ${pieceName} move${moveText} took away the king's last square without checking it. Try again: keep the queen a knight's-move away until your king helps.`;
     }
 
+    function realGameStalemateStatus(play) {
+      const detail = play.lastMoveDetail || {};
+      const pieceName = detail.piece && PIECE_BY_ID[detail.piece] ? PIECE_BY_ID[detail.piece].name : "piece";
+      const moveText = detail.from && detail.to ? ` Your last move was ${pieceName} from ${detail.from} to ${detail.to}.` : "";
+      const stuckSide = play.turn === "dark" ? "dark pink king" : "soft pink king";
+      const owner = play.turn === "dark" ? "you" : "the bot";
+      return `Stalemate. This is a draw, not a win.${moveText} The ${stuckSide} has no legal move, but it is not being attacked. Checkmate needs both things at once: the king is attacked, and the king has no safe move. To avoid this, ${owner} needed a move that either gave check right now, or left the king one safe square until the checking move was ready.`;
+    }
+
     function validateDrillPositions(samples = 16) {
       const checked = {};
       Object.keys(DRILL_TYPES).forEach(type => {
@@ -1953,7 +1962,7 @@
           next.result = "draw";
           next.status = next.playMode === "drill"
             ? drillStalemateStatus(next)
-            : "Stalemate. This is a draw: the king is not in danger, but has no legal move. Checkmate is different: the king is in danger and has no legal move. To make checkmate instead, the last move would need to attack the king while covering every escape square.";
+            : realGameStalemateStatus(next);
           if (next.playMode === "drill") next.coachMessage = next.status;
         }
         return next;
@@ -1987,6 +1996,7 @@
         message: "",
         coachOn: false,
         askMode: false,
+        moveOptionsOn: false,
         hintLevel: 0,
         hintSquares: [],
         coachMessage: "",
@@ -2019,6 +2029,8 @@
       };
       state.play.playMode = "real";
       state.play.drillType = null;
+      state.play.moveOptionsOn = Boolean(state.play.moveOptionsOn || state.play.askMode);
+      state.play.askMode = false;
       state.play = updatePlayStatus(state.play);
       return state.play;
     }
@@ -2217,21 +2229,14 @@
       const suggestion = validatedCoachSuggestion(play, rawSuggestion);
       if (!suggestion) {
         play.coachMessage = "No clear hint right now. Try any legal move, or start fresh.";
-        return [];
+        return null;
       }
-      play.hintLevel = Math.min(3, (play.hintLevel || 0) + 1);
       play.hintSquares = [];
       const pieceName = PIECE_BY_ID[suggestion.piece].name;
       const reason = coachSuggestionReason(play, suggestion);
-      if (play.hintLevel === 1) {
-        play.coachMessage = `Try ${suggestion.from} to ${suggestion.to}. This helps because ${reason}.`;
-      } else if (play.hintLevel === 2) {
-        play.coachMessage = `Tap ${suggestion.to} with your ${pieceName}. Start on ${suggestion.from}; ${reason}.`;
-      } else {
-        play.coachMessage = `Watch ${suggestion.from} to ${suggestion.to} flash. Then try it yourself.`;
-        return [suggestion.from, suggestion.to];
-      }
-      return [];
+      play.coachMessage = `Move suggestion: ${pieceName} from ${suggestion.from} to ${suggestion.to}. This helps because ${reason}.`;
+      play.message = `Coach suggests ${suggestion.from} to ${suggestion.to}.`;
+      return suggestion;
     }
 
     function chooseDrillBotMove(play) {
@@ -3244,9 +3249,9 @@
     const MATING_DRILLS = [
       {
         id: "queen-box",
-        title: "king + queen",
+        title: "king + queen: diagonal",
         kind: "technique",
-        intro: "The queen takes away escape squares. Your king helps make the queen safe.",
+        intro: "The queen moves close on a slant. Your king protects her so the dark king cannot take her.",
         demoStart: [p("h8", "king", "dark"), p("f7", "king", "soft"), p("f6", "queen", "soft")],
         demoMoves: [
           {
@@ -3259,9 +3264,45 @@
           }
         ],
         testStart: [p("h8", "king", "dark"), p("f7", "king", "soft"), p("f6", "queen", "soft")],
-        answers: [{ from: "f6", to: "g7" }],
-        twinMove: { from: "f6", to: "g6" },
-        twin: "Queen to g6 takes away every escape square, but it does not attack h8. That is the stale shape: the king has no move, but it is not in danger."
+        answers: [{ from: "f6", to: "g7" }]
+      },
+      {
+        id: "queen-row-mate",
+        title: "king + queen: same row",
+        kind: "technique",
+        intro: "The queen can land on the king's row. Your king protects the queen from close by.",
+        demoStart: [p("h8", "king", "dark"), p("f7", "king", "soft"), p("g1", "queen", "soft")],
+        demoMoves: [
+          {
+            from: "g1",
+            to: "g8",
+            why: "Queen to g8 attacks the dark king from the same row.",
+            risk: "Risky-or-not: the dark king cannot take the queen because your king controls g8.",
+            check: "Check-or-not: yes. The queen attacks h8 from g8.",
+            mate: "Mate-or-not: mate. Your king makes h7 and g7 unsafe, and the queen attacks h8."
+          }
+        ],
+        testStart: [p("h8", "king", "dark"), p("f7", "king", "soft"), p("g1", "queen", "soft")],
+        answers: [{ from: "g1", to: "g8" }]
+      },
+      {
+        id: "queen-left-corner",
+        title: "king + queen: left corner",
+        kind: "technique",
+        intro: "The same queen idea works on either side of the board. The corner changes, but the trap logic stays the same.",
+        demoStart: [p("a8", "king", "dark"), p("c6", "king", "soft"), p("b1", "queen", "soft")],
+        demoMoves: [
+          {
+            from: "b1",
+            to: "b7",
+            why: "Queen to b7 attacks the dark king on the slanted line.",
+            risk: "Risky-or-not: the dark king cannot take the queen because your king controls b7.",
+            check: "Check-or-not: yes. The queen attacks a8 diagonally from b7.",
+            mate: "Mate-or-not: mate. The queen attacks a8, a7, and b8 while your king protects b7."
+          }
+        ],
+        testStart: [p("a8", "king", "dark"), p("c6", "king", "soft"), p("b1", "queen", "soft")],
+        answers: [{ from: "b1", to: "b7" }]
       },
       {
         id: "rook-box",
@@ -3280,9 +3321,7 @@
           }
         ],
         testStart: [p("h8", "king", "dark"), p("h6", "king", "soft"), p("a1", "rook", "soft")],
-        answers: [{ from: "a1", to: "a8" }],
-        twinMove: { from: "a1", to: "g1" },
-        twin: "Rook to g1 makes g8 unsafe, and your king makes h7 and g7 unsafe. But h8 is not attacked, so the king is stuck, not checked: stalemate."
+        answers: [{ from: "a1", to: "a8" }]
       },
       {
         id: "two-rooks",
@@ -3309,9 +3348,7 @@
           }
         ],
         testStart: [p("h8", "king", "dark"), p("e6", "king", "soft"), p("a7", "rook", "soft"), p("b1", "rook", "soft")],
-        answers: [{ from: "b1", to: "b8" }],
-        twinMove: { from: "b1", to: "g1" },
-        twin: "Rook to g1 makes g8 unsafe while the other rook makes h7 and g7 unsafe. It gives no check. That is stalemate: no safe move, but no danger."
+        answers: [{ from: "b1", to: "b8" }]
       },
       {
         id: "two-bishops",
@@ -3330,9 +3367,7 @@
           }
         ],
         testStart: [p("h8", "king", "dark"), p("f7", "king", "soft"), p("e3", "bishop", "soft"), p("e4", "bishop", "soft")],
-        answers: [{ from: "e3", to: "d4" }],
-        twinMove: { from: "e4", to: "g6" },
-        twin: "Bishop to g6 makes h7 unsafe, while your king makes g8 and g7 unsafe. But h8 is not attacked, so it is stalemate."
+        answers: [{ from: "e3", to: "d4" }]
       },
       {
         id: "back-rank",
@@ -3351,9 +3386,7 @@
           }
         ],
         testStart: [p("g8", "king", "dark"), p("f7", "pawn", "dark"), p("g7", "pawn", "dark"), p("h7", "pawn", "dark"), p("a1", "king", "soft"), p("e1", "rook", "soft")],
-        answers: [{ from: "e1", to: "e8" }],
-        twinMove: { from: "e1", to: "e7" },
-        twin: "Rook to e7 attacks the pawn wall, not the king. The back rank is still a cage, but the checking move did not arrive."
+        answers: [{ from: "e1", to: "e8" }]
       },
       {
         id: "smothered",
@@ -3372,9 +3405,7 @@
           }
         ],
         testStart: [p("h8", "king", "dark"), p("g8", "rook", "dark"), p("g7", "pawn", "dark"), p("h7", "pawn", "dark"), p("a1", "king", "soft"), p("h6", "knight", "soft")],
-        answers: [{ from: "h6", to: "f7" }],
-        twinMove: { from: "h6", to: "g8" },
-        twin: "The knight taking g8 removes one wall. Smothered mate needs the enemy pieces to stay as the cage."
+        answers: [{ from: "h6", to: "f7" }]
       },
       {
         id: "anastasia",
@@ -3393,9 +3424,7 @@
           }
         ],
         testStart: [p("h7", "king", "dark"), p("g7", "pawn", "dark"), p("a1", "king", "soft"), p("e7", "knight", "soft"), p("h1", "rook", "soft")],
-        answers: [{ from: "h1", to: "h3" }],
-        twinMove: { from: "h1", to: "h2" },
-        twin: "Rook to h2 sits on the file but does not check the king. Same cage, missing danger."
+        answers: [{ from: "h1", to: "h3" }]
       },
       {
         id: "arabian",
@@ -3414,9 +3443,7 @@
           }
         ],
         testStart: [p("h8", "king", "dark"), p("a1", "king", "soft"), p("f6", "knight", "soft"), p("h1", "rook", "soft")],
-        answers: [{ from: "h1", to: "h7" }],
-        twinMove: { from: "h1", to: "g1" },
-        twin: "Rook to g1 does not check the corner. The knight is ready, but the rook has not closed the file."
+        answers: [{ from: "h1", to: "h7" }]
       },
       {
         id: "boden",
@@ -3435,9 +3462,7 @@
           }
         ],
         testStart: [p("h8", "king", "dark"), p("f7", "king", "soft"), p("e3", "bishop", "soft"), p("e4", "bishop", "soft")],
-        answers: [{ from: "e3", to: "d4" }],
-        twinMove: { from: "e4", to: "g6" },
-        twin: "One bishop makes an escape square unsafe, but no bishop attacks the king. That is the missing danger."
+        answers: [{ from: "e3", to: "d4" }]
       },
       {
         id: "greco",
@@ -3456,9 +3481,7 @@
           }
         ],
         testStart: [p("h8", "king", "dark"), p("g7", "pawn", "dark"), p("f2", "king", "soft"), p("c4", "bishop", "soft"), p("a1", "rook", "soft")],
-        answers: [{ from: "a1", to: "h1" }],
-        twinMove: { from: "a1", to: "g1" },
-        twin: "Rook to g1 is nearby, but it does not check up the h-file. The bishop is ready; the rook chose the wrong file."
+        answers: [{ from: "a1", to: "h1" }]
       }
     ];
 
@@ -3713,9 +3736,6 @@
     let state = loadState();
     let feedbackTimer = null;
     let botTimer = null;
-    let hintFlashTimer = null;
-    let practiceFlashTimer = null;
-
     const app = document.getElementById("app");
     const layout = document.getElementById("layout");
     let stage = null;
@@ -3736,7 +3756,7 @@
         next.missCounts = {};
         next.feedback = "";
         next.practiceShowAnswer = false;
-        next.practiceMode = ["menu", "demo", "test", "twin"].includes(next.practiceMode) ? next.practiceMode : "menu";
+        next.practiceMode = ["menu", "demo", "test"].includes(next.practiceMode) ? next.practiceMode : "menu";
         next.practiceIndex = Number.isInteger(next.practiceIndex) && next.practiceIndex >= 0 && next.practiceIndex < PRACTICE.length ? next.practiceIndex : 0;
         next.practiceStep = Number.isInteger(next.practiceStep) && next.practiceStep >= 0 ? next.practiceStep : 0;
         next.practiceStepDone = false;
@@ -3761,7 +3781,17 @@
         }
         next.resetConfirm = false;
         next.aboutOpenPanel = "";
-        if (next.play) next.play.busy = false;
+        if (next.play) {
+          next.play.busy = false;
+          next.play.coachOn = false;
+          next.play.askMode = false;
+          next.play.moveOptionsOn = false;
+          next.play.coachMessage = "";
+          next.play.message = "";
+          next.play.legal = [];
+          next.play.hintSquares = [];
+          next.play.hintLevel = 0;
+        }
         return next;
       } catch (error) {
         return { ...defaultState };
@@ -3869,47 +3899,15 @@
     }
 
     function clearHintFlash() {
-      if (hintFlashTimer) {
-        window.clearTimeout(hintFlashTimer);
-        hintFlashTimer = null;
-      }
       if (state.play && state.play.hintSquares && state.play.hintSquares.length) {
         state.play.hintSquares = [];
       }
     }
 
     function clearPracticeFlash() {
-      if (practiceFlashTimer) {
-        window.clearTimeout(practiceFlashTimer);
-        practiceFlashTimer = null;
-      }
       if (state.view === "practice") {
         state.revealedByStep[`practice:${state.practiceIndex}`] = [];
       }
-    }
-
-    function startHintFlash(squares, options = {}) {
-      clearHintFlash();
-      const play = ensurePlayState();
-      const flashSquares = (squares || []).filter(square => /^[a-h][1-8]$/.test(square));
-      if (flashSquares.length < 2) {
-        play.coachMessage = "I could not flash a safe move right now. Try a move, or start fresh.";
-        play.hintSquares = [];
-        render();
-        return;
-      }
-      play.hintSquares = flashSquares;
-      const flashMessage = options.flashMessage || play.coachMessage;
-      render();
-      hintFlashTimer = window.setTimeout(() => {
-        hintFlashTimer = null;
-        const current = ensurePlayState();
-        current.hintSquares = [];
-        if (options.clearCoachMessage && current.coachMessage === flashMessage) {
-          current.coachMessage = options.restoreCoachMessage || "";
-        }
-        render();
-      }, 950);
     }
 
     function flashFeedback(message, restoreMessage) {
@@ -3922,21 +3920,6 @@
           state.feedback = restoreMessage || "";
           render();
         }
-      }, 950);
-    }
-
-    function flashPracticeSquares(squaresToFlash, message, restoreMessage) {
-      clearPracticeFlash();
-      clearFlashFeedback();
-      const key = `practice:${state.practiceIndex}`;
-      state.revealedByStep[key] = squaresToFlash;
-      state.feedback = message;
-      render();
-      practiceFlashTimer = window.setTimeout(() => {
-        practiceFlashTimer = null;
-        state.revealedByStep[key] = [];
-        if (state.feedback === message) state.feedback = restoreMessage || "";
-        render();
       }, 950);
     }
 
@@ -4156,6 +4139,8 @@
       const errors = [];
       const requiredIds = new Set([
         "queen-box",
+        "queen-row-mate",
+        "queen-left-corner",
         "rook-box",
         "two-rooks",
         "two-bishops",
@@ -4169,13 +4154,12 @@
       const assert = (condition, label) => {
         if (!condition) errors.push(label);
       };
-      assert(MATING_DRILLS.length === 10, `expected 10 mating drills, got ${MATING_DRILLS.length}`);
+      assert(MATING_DRILLS.length === 12, `expected 12 mating drills, got ${MATING_DRILLS.length}`);
       MATING_DRILLS.forEach(drill => requiredIds.delete(drill.id));
       assert(requiredIds.size === 0, `missing drills: ${Array.from(requiredIds).join(", ")}`);
 
       let demoMoveCount = 0;
       let patternDrills = 0;
-      let techniqueStalemates = 0;
 
       MATING_DRILLS.forEach(drill => {
         if (drill.kind === "pattern") patternDrills += 1;
@@ -4202,26 +4186,13 @@
           assert(after.result === "soft", `${drill.id} test: answer ${answer.from}-${answer.to} is not checkmate`);
         });
 
-        const twin = drill.twinMove;
-        const twinPosition = clonePosition(drill.twinStart || drill.testStart || []);
-        if (twin) {
-          const legalTwin = findPracticeMove(twinPosition, twin.from, twin.to);
-          assert(Boolean(legalTwin), `${drill.id} twin: illegal ${twin.from}-${twin.to}`);
-          if (legalTwin && drill.kind === "technique") {
-            const afterTwin = applyGameMoveSnapshot(practicePlay(twinPosition, "soft"), legalTwin, "queen", true);
-            assert(afterTwin.result === "draw", `${drill.id} twin: expected stalemate draw`);
-            if (afterTwin.result === "draw") techniqueStalemates += 1;
-          }
-        } else {
-          errors.push(`${drill.id}: missing twin move`);
-        }
       });
 
       assert(patternDrills === 6, `expected 6 named pattern drills, got ${patternDrills}`);
       if (errors.length) {
         throw new Error(`Mating drill validation failed:\n${errors.join("\n")}`);
       }
-      return { drills: MATING_DRILLS.length, patternDrills, demoMoveCount, techniqueStalemates };
+      return { drills: MATING_DRILLS.length, patternDrills, demoMoveCount };
     }
 
     function ruleKeyForItem(item) {
@@ -4520,17 +4491,12 @@
         return positionAfterPracticeMoves(drill, applied);
       }
       if (state.practiceMode === "test") return clonePosition(drill.testStart);
-      if (state.practiceMode === "twin") {
-        const position = clonePosition(drill.testStart);
-        return state.practiceStepDone ? applyPracticeMove(position, drill.twinMove, false).position : position;
-      }
       return clonePosition(drill.testStart || drill.demoStart);
     }
 
     function currentPracticeMove() {
       const drill = currentPracticeDrill();
       if (state.practiceMode === "demo") return drill.demoMoves[state.practiceStep] || drill.demoMoves[0];
-      if (state.practiceMode === "twin") return drill.twinMove;
       return null;
     }
 
@@ -4571,9 +4537,12 @@
       return finishSentence(reason);
     }
 
-    function practiceMoveInstruction(drill, move, position) {
+    function practiceMoveInstruction(drill, move, position, selected = null) {
       const pieceName = movePieceName(position, move);
-      return `Tap ${move.to}. This moves your ${pieceName} from ${move.from} to ${move.to}. ${capitalSentence(compactMoveReason(position, drill, move))}`;
+      if (selected === move.from) {
+        return `Now tap ${move.to}. That puts your ${pieceName} where it needs to go. ${capitalSentence(compactMoveReason(position, drill, move))}`;
+      }
+      return `Tap your ${pieceName} on ${move.from}. Then tap ${move.to}. ${capitalSentence(compactMoveReason(position, drill, move))}`;
     }
 
     function practiceMoveResult(drill, move, position) {
@@ -4588,16 +4557,6 @@
       return `Yes. Your ${pieceName} on ${move.to} takes away escape space. That sets up the next move.`;
     }
 
-    function practiceTwinInstruction(drill) {
-      const move = drill.twinMove;
-      const pieceName = movePieceName(drill.testStart, move);
-      return `Tap ${move.to}. This moves your ${pieceName} from ${move.from} to ${move.to}. It is the almost-right version, so watch why it does not win.`;
-    }
-
-    function practiceTwinResult(drill) {
-      return `${finishSentence(drill.twin)} That is the difference: close is not checkmate unless the king is attacked.`;
-    }
-
     function isStalemateMove(position, move) {
       const after = applyPracticeMove(position, move, true);
       return after.result === "draw" && /^Stalemate\./.test(after.status || "");
@@ -4607,22 +4566,10 @@
       const drill = currentPracticeDrill();
       if (state.practiceMode === "demo") {
         const move = currentPracticeMove();
-        return `Tap ${move.to}.`;
+        return state.practiceSelected === move.from ? `Tap ${move.to}.` : `Tap ${move.from} first.`;
       }
       if (state.practiceMode === "test") return "Find mate. Tap your piece, then its landing square.";
-      if (state.practiceMode === "twin") return `Tap ${drill.twinMove.to}.`;
       return "Choose a drill.";
-    }
-
-    function practiceHintMessage() {
-      const drill = currentPracticeDrill();
-      const answer = drill.answers[0];
-      if (!state.practiceHintLevel) return "";
-      const pieceName = movePieceName(drill.testStart, answer);
-      const reason = compactMoveReason(drill.testStart, drill, answer);
-      if (state.practiceHintLevel === 1) return `Try moving your ${pieceName} from ${answer.from} to ${answer.to}. ${capitalSentence(reason)}`;
-      if (state.practiceHintLevel === 2) return `Tap ${answer.to}. That square works because ${becauseText(reason)}.`;
-      return `The flash is gone. Try ${answer.from} to ${answer.to} from memory.`;
     }
 
     function getPracticeCoachMessage() {
@@ -4632,7 +4579,7 @@
         return {
           eyebrow: "practice",
           title: "mating curriculum",
-          body: "Practice is mating patterns. Use Show Me first, then Try It. Mistake shows the almost-right move.",
+          body: "Practice has two parts: Show Me, where the coach tells you the move and why, then Try It, where you do it yourself.",
           feedback: state.feedback || `${done}/${PRACTICE.length} drills passed.`
         };
       }
@@ -4642,7 +4589,7 @@
         return {
           eyebrow: "coach",
           title: state.practiceStepDone ? "why that worked" : drill.title,
-          body: state.practiceStepDone ? practiceMoveResult(drill, move, before) : practiceMoveInstruction(drill, move, before),
+          body: state.practiceStepDone ? practiceMoveResult(drill, move, before) : practiceMoveInstruction(drill, move, before, state.practiceSelected),
           feedback: state.feedback || (state.practiceStepDone ? "Press next." : practicePrompt()),
           actions: `
             <div class="action-row">
@@ -4658,28 +4605,20 @@
           eyebrow: "coach",
           title: passed ? "passed" : drill.title,
           body: passed ? practiceMoveResult(drill, drill.answers[0], clonePosition(drill.testStart)) : "Find the move that attacks the king and leaves no safe square.",
-          feedback: state.feedback || practiceHintMessage() || (state.practiceSelected ? "Now tap the landing square." : practicePrompt()),
+          feedback: state.feedback || (state.practiceSelected ? "Now tap the landing square." : practicePrompt()),
           actions: `
-            <div class="action-row three">
+            <div class="action-row">
               <button class="small-button" type="button" data-action="practice-menu">menu</button>
-              <button class="small-button" type="button" data-action="practice-hint" ${passed ? "disabled" : ""}>hint</button>
-              <button class="primary-button" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(drill.id)}" data-practice-mode="twin">mistake</button>
+              ${passed
+                ? `<button class="primary-button" type="button" data-action="practice-next">next round</button>`
+                : `<button class="primary-button" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(drill.id)}" data-practice-mode="demo">show me</button>`
+              }
             </div>
           `
         };
       }
-      return {
-        eyebrow: "coach",
-        title: state.practiceStepDone ? "why it goes wrong" : drill.title,
-        body: state.practiceStepDone ? practiceTwinResult(drill) : practiceTwinInstruction(drill),
-        feedback: state.feedback || (state.practiceStepDone ? "Mistake example complete. Go back or test again." : practicePrompt()),
-        actions: `
-          <div class="action-row">
-            <button class="small-button" type="button" data-action="practice-menu">menu</button>
-            <button class="primary-button" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(drill.id)}" data-practice-mode="test">try it</button>
-          </div>
-        `
-      };
+      state.practiceMode = "menu";
+      return getPracticeCoachMessage();
     }
 
     function getPlayCoachMessage() {
@@ -4708,7 +4647,6 @@
           actions: `
             <div class="play-controls">
               <button class="primary-button" type="button" data-action="play-new">new game</button>
-              ${renderPracticeAvoidingButton(play)}
             </div>
           `
         };
@@ -4716,16 +4654,16 @@
       if (!play.coachOn) return null;
       return {
         eyebrow: "coach",
-        title: play.askMode ? "ask mode on" : "on demand",
-        body: play.coachMessage || "Use hints only when you want them. Ask mode lets you tap any piece to ask what it does.",
+        title: play.moveOptionsOn ? "move options on" : "on demand",
+        body: play.coachMessage || "Hint suggests one move and why. Move Options outlines the legal squares for the selected piece.",
         feedback: play.message || play.status,
         actions: `
           <div class="play-controls">
             <button class="primary-button" type="button" data-action="play-hint" ${play.turn !== "soft" || play.result ? "disabled" : ""}>
-              ${play.hintLevel ? `hint ${Math.min(play.hintLevel + 1, 3)}` : "hint"}
+              hint
             </button>
-            <button class="small-button" type="button" data-action="play-ask" aria-pressed="${play.askMode}">
-              ${play.askMode ? "move mode" : "ask mode"}
+            <button class="small-button" type="button" data-action="play-ask" aria-pressed="${play.moveOptionsOn}">
+              ${play.moveOptionsOn ? "options off" : "move options"}
             </button>
             <button class="small-button" type="button" data-action="play-new">new game</button>
           </div>
@@ -5178,7 +5116,7 @@
             <div>
               <p class="eyebrow">practice</p>
               <h2 class="macro-title">mate patterns</h2>
-              <p class="plain-text">Each drill has Show Me, Try It, and Mistake.</p>
+              <p class="plain-text">Each round has Show Me, then Try It. The coach explains the move, then you do it alone.</p>
             </div>
           </section>
           <section class="drill-list">
@@ -5194,10 +5132,9 @@
                     </div>
                     <span class="drill-status">${done ? "done" : drill.kind}</span>
                   </div>
-                  <div class="action-row three">
+                  <div class="action-row">
                     <button class="small-button" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(drill.id)}" data-practice-mode="demo">show me</button>
                     <button class="primary-button" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(drill.id)}" data-practice-mode="test">try it</button>
-                    <button class="small-button" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(drill.id)}" data-practice-mode="twin">mistake</button>
                   </div>
                 </article>
               `;
@@ -5206,6 +5143,7 @@
         `;
       } else {
         const selected = state.practiceSelected ? new Set([state.practiceSelected]) : new Set();
+        const guidedMove = state.practiceMode === "demo" && state.practiceSelected ? currentPracticeMove() : null;
         stage.innerHTML = `
           <section class="macro-card">
             <div>
@@ -5218,7 +5156,7 @@
             positionItems: currentPracticePosition(),
             highlights: revealed,
             selected,
-            legal: [],
+            legal: guidedMove && state.practiceSelected === guidedMove.from ? [guidedMove.to] : [],
             lastMove: []
           })}
         `;
@@ -5301,7 +5239,7 @@
         ${renderBoard({
           positionItems: play.position,
           selected,
-          legal: play.coachOn && play.askMode ? play.legal : [],
+          legal: play.coachOn && play.moveOptionsOn ? play.legal : [],
           highlights,
           lastMove: []
         })}
@@ -5394,41 +5332,6 @@
       }
 
       const tappedPiece = pieceAtSquare(play.position, square);
-      if (play.coachOn && play.askMode) {
-        if (play.selected) {
-          const legalMoves = legalGameMovesForSquare(play, play.selected);
-          const move = legalMoves.find(item => item.to === square);
-          if (move) {
-            if (moveNeedsPromotion(play, move)) {
-              play.pendingPromotion = move;
-              play.message = "Your pawn reached the last row. Choose what it becomes.";
-              play.legal = [move.to];
-              render();
-              return;
-            }
-            completePlayMove(move);
-            return;
-          }
-        }
-        const answer = describePieceForCoach(play, square);
-        play.coachMessage = answer.message;
-        if (tappedPiece && tappedPiece.side === "soft") {
-          play.selected = square;
-          play.legal = answer.squares;
-          play.hintSquares = [];
-          play.message = answer.squares.length
-            ? "Coach answered. Tap one highlighted square to move, or tap another piece to ask."
-            : "Coach answered. This piece has no legal move right now.";
-        } else {
-          play.selected = null;
-          play.legal = [];
-          play.hintSquares = [];
-          play.message = "Coach answered. Ask another piece, or tap your own piece to move it.";
-        }
-        render();
-        return;
-      }
-
       if (play.selected) {
         const legalMoves = legalGameMovesForSquare(play, play.selected);
         const move = legalMoves.find(item => item.to === square);
@@ -5449,7 +5352,9 @@
           play.legal = nextMoves.map(item => item.to);
           play.hintSquares = [];
           play.message = nextMoves.length
-            ? `${PIECE_BY_ID[tappedPiece.piece].name} selected. Pick the square you want.`
+            ? play.moveOptionsOn
+              ? `${PIECE_BY_ID[tappedPiece.piece].name} selected. Outlined squares show where it can move.`
+              : `${PIECE_BY_ID[tappedPiece.piece].name} selected. Pick the square you want.`
             : "That piece has no legal move right now.";
           render();
           return;
@@ -5474,7 +5379,9 @@
       play.legal = legalMoves.map(item => item.to);
       play.hintSquares = [];
       play.message = legalMoves.length
-        ? `${PIECE_BY_ID[tappedPiece.piece].name} selected. Pick the square you want.`
+        ? play.moveOptionsOn
+          ? `${PIECE_BY_ID[tappedPiece.piece].name} selected. Outlined squares show where it can move.`
+          : `${PIECE_BY_ID[tappedPiece.piece].name} selected. Pick the square you want.`
         : "That piece has no legal move right now.";
       render();
     }
@@ -5491,7 +5398,7 @@
     function setPracticePhase(drillId, mode = "demo") {
       const index = PRACTICE.findIndex(drill => drill.id === drillId);
       state.practiceIndex = index >= 0 ? index : 0;
-      state.practiceMode = ["menu", "demo", "test", "twin"].includes(mode) ? mode : "demo";
+      state.practiceMode = ["menu", "demo", "test"].includes(mode) ? mode : "demo";
       state.practiceStep = 0;
       state.practiceStepDone = false;
       state.practiceSelected = null;
@@ -5539,26 +5446,51 @@
         return;
       }
       if (state.practiceMode === "menu") {
-        state.feedback = "Choose Demo, Test, or Twin first.";
+        state.feedback = "Choose Show Me or Try It first.";
         render();
         return;
       }
 
       const drill = currentPracticeDrill();
-      if (state.practiceMode === "demo" || state.practiceMode === "twin") {
+      if (state.practiceMode === "demo") {
+        const expected = currentPracticeMove();
         if (state.practiceStepDone) {
-          state.feedback = state.practiceMode === "demo" ? "Press next for the next move." : "Mistake example complete. Pick Try It or menu.";
+          state.feedback = "Press next for the next move.";
           render();
           return;
         }
-        const expected = currentPracticeMove();
-        if (!expected || square !== expected.to) {
+        if (!expected) {
           flashFeedback("No, not that one.", practicePrompt());
+          return;
+        }
+        const position = currentPracticePosition();
+        const tappedPiece = pieceAtSquare(position, square);
+        if (!state.practiceSelected) {
+          if (square !== expected.from) {
+            flashFeedback("No, not that one.", practicePrompt());
+            return;
+          }
+          state.practiceSelected = square;
+          state.feedback = `Good. Now tap ${expected.to}.`;
+          render();
+          return;
+        }
+        if (state.practiceSelected !== expected.from) {
+          state.practiceSelected = null;
+          flashFeedback("No, not that one.", practicePrompt());
+          return;
+        }
+        if (tappedPiece && tappedPiece.side === "soft" && square !== expected.from) {
+          flashFeedback("No, not that one.", `Keep the selected piece. Tap ${expected.to}.`);
+          return;
+        }
+        if (square !== expected.to) {
+          flashFeedback("No, not that one.", `Tap ${expected.to}.`);
           return;
         }
         state.practiceStepDone = true;
         state.practiceSelected = null;
-        state.feedback = state.practiceMode === "demo" ? "Good. The coach will explain why." : "Good. Now read why that almost worked.";
+        state.feedback = "Good. The coach will explain why.";
         render();
         return;
       }
@@ -5822,27 +5754,8 @@
       if (action === "practice-next-step") {
         completePracticeStep();
       }
-      if (action === "practice-hint") {
-        if (state.practiceMode !== "test") return;
-        const drill = currentPracticeDrill();
-        const answer = drill.answers[0];
-        state.practiceHintLevel = Math.min(3, (state.practiceHintLevel || 0) + 1);
-        if (state.practiceHintLevel >= 3) {
-          state.practiceHintLevel = 3;
-          flashPracticeSquares([answer.from, answer.to], `Watch ${answer.from} to ${answer.to} flash.`, `The flash is gone. Try ${answer.from} to ${answer.to} from memory.`);
-        } else {
-          state.feedback = practiceHintMessage();
-          render();
-        }
-      }
       if (action === "practice-reset") {
         startPracticePhase(currentPracticeDrill().id, state.practiceMode === "menu" ? "demo" : state.practiceMode);
-      }
-      if (action === "practice-answer") {
-        const drill = currentPracticeDrill();
-        const answer = drill.answers[0];
-        flashPracticeSquares([answer.from, answer.to], `Watch ${answer.from} to ${answer.to} flash.`, `The flash is gone. Try ${answer.from} to ${answer.to} from memory.`);
-        render();
       }
       if (action === "practice-next") {
         const next = PRACTICE[(state.practiceIndex + 1) % PRACTICE.length];
@@ -5968,30 +5881,31 @@
         const play = ensurePlayState();
         play.coachOn = !play.coachOn;
         play.askMode = false;
+        play.moveOptionsOn = play.coachOn ? Boolean(play.moveOptionsOn) : false;
         play.coachMessage = "";
         play.hintSquares = [];
         render();
       }
       if (action === "play-hint") {
         const play = ensurePlayState();
-        const flashSquares = applyCoachHint(play);
-        if (flashSquares.length) {
-          startHintFlash(flashSquares, {
-            clearCoachMessage: true,
-            restoreCoachMessage: `The flash is gone. Try ${flashSquares[0]} to ${flashSquares[1]} from memory.`
-          });
-        } else {
-          render();
-        }
+        applyCoachHint(play);
+        render();
       }
       if (action === "play-ask") {
         clearHintFlash();
         const play = ensurePlayState();
-        play.askMode = !play.askMode;
+        play.moveOptionsOn = !play.moveOptionsOn;
+        play.askMode = false;
         play.hintSquares = [];
-        play.coachMessage = play.askMode
-          ? "Tap any piece to ask what it does."
-          : "Move mode is back on.";
+        if (!play.moveOptionsOn) {
+          play.legal = [];
+          play.selected = null;
+        } else if (play.selected) {
+          play.legal = legalGameMovesForSquare(play, play.selected).map(item => item.to);
+        }
+        play.coachMessage = play.moveOptionsOn
+          ? "Move Options is on. Tap a soft pink piece and the legal squares get outlined."
+          : "Move Options is off.";
         render();
       }
       if (action === "promote-choice") {
