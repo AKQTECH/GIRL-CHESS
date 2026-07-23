@@ -137,17 +137,12 @@
       grid-template-columns: minmax(214px, 260px) minmax(360px, 1fr) minmax(282px, 350px);
     }
 
-    .layout.two-panel-layout,
-    .layout.play-layout {
+    .layout.two-panel-layout {
       grid-template-columns: minmax(360px, 1fr) minmax(282px, 350px);
     }
 
-    .layout.play-layout.coach-off {
+    .layout.play-layout {
       grid-template-columns: minmax(360px, 1fr);
-    }
-
-    .layout.play-layout.coach-off .legend-panel {
-      display: none;
     }
 
     .layout.single-panel-layout {
@@ -930,6 +925,42 @@
       gap: 8px;
     }
 
+    .play-layout .stage-scroll {
+      gap: 8px;
+    }
+
+    .play-coach-card {
+      display: grid;
+      gap: 9px;
+      padding: 12px;
+      border: 2px solid var(--line);
+      background: var(--white);
+    }
+
+    .play-coach-head {
+      display: grid;
+      gap: 5px;
+    }
+
+    .play-coach-card .micro-title {
+      font-size: clamp(20px, 2.4vw, 30px);
+    }
+
+    .play-coach-card .micro-body {
+      font-size: 15px;
+      line-height: 1.32;
+    }
+
+    .play-coach-card .feedback {
+      min-height: 38px;
+      padding: 8px;
+      font-size: 14px;
+    }
+
+    .play-coach-card .play-controls {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
     .mode-card {
       padding: 10px;
       border: 2px solid var(--line-soft);
@@ -1091,8 +1122,7 @@
       .is-practice-clean .layout,
       .layout.lessons-layout,
       .layout.two-panel-layout,
-        .layout.play-layout,
-        .layout.play-layout.coach-off {
+      .layout.play-layout {
         grid-template-columns: 1fr;
         align-items: start;
         align-content: start;
@@ -1165,6 +1195,36 @@
       .action-row.three {
         grid-template-columns: 1fr;
       }
+
+      .play-layout .stage-scroll {
+        padding: 8px;
+      }
+
+      .play-coach-card {
+        gap: 7px;
+        padding: 9px;
+      }
+
+      .play-coach-card .play-controls {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+      }
+
+      .play-coach-card .small-button,
+      .play-coach-card .primary-button {
+        min-height: 40px;
+        padding-left: 4px;
+        padding-right: 4px;
+        font-size: 10px;
+      }
+
+      .play-layout .board-wrap {
+        padding: 7px;
+      }
+
+      .play-layout .board-frame {
+        padding: 6px;
+      }
     }
   </style>
 </head>
@@ -1187,7 +1247,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "Girl Chess v4.3";
+    const APP_VERSION = "Girl Chess v4.7";
     const STORAGE_KEY = "girl-chess-progress-v1";
     const DIFFICULTIES = ["easy", "normal", "hard"];
     const WIN_UPGRADE_TARGET = 2;
@@ -3736,6 +3796,7 @@
     let state = loadState();
     let feedbackTimer = null;
     let botTimer = null;
+    let practiceAdvanceTimer = null;
     const app = document.getElementById("app");
     const layout = document.getElementById("layout");
     let stage = null;
@@ -3876,6 +3937,7 @@
     }
 
     function clearAllTransient() {
+      clearPracticeAdvance();
       state.foundByStep = {};
       state.answerShownByStep = {};
       state.revealedByStep = {};
@@ -3895,6 +3957,13 @@
       if (botTimer) {
         window.clearTimeout(botTimer);
         botTimer = null;
+      }
+    }
+
+    function clearPracticeAdvance() {
+      if (practiceAdvanceTimer) {
+        window.clearTimeout(practiceAdvanceTimer);
+        practiceAdvanceTimer = null;
       }
     }
 
@@ -3991,9 +4060,11 @@
           ${panelMarkup("board-panel", "lesson", "stage")}
           ${panelMarkup("panel", "coach", "coach", "legend-panel")}
         `;
-      } else if (type === "two-panel-layout" || type === "play-layout") {
+      } else if (type === "play-layout") {
+        layout.innerHTML = panelMarkup("board-panel", "coach", "stage");
+      } else if (type === "two-panel-layout") {
         layout.innerHTML = `
-          ${panelMarkup("board-panel", type === "play-layout" ? "play" : "practice", "stage")}
+          ${panelMarkup("board-panel", "practice", "stage")}
           ${panelMarkup("panel", "coach", "coach", "legend-panel")}
         `;
       } else {
@@ -4431,11 +4502,15 @@
       const checklist = model.checklist && model.checklist.length
         ? `<ul class="checklist">${model.checklist.map(item => `<li>${escapeHTML(item)}</li>`).join("")}</ul>`
         : "";
+      const eyebrow = String(model.eyebrow || "coach");
+      const eyebrowMarkup = eyebrow.toLowerCase() === "coach"
+        ? ""
+        : `<p class="eyebrow">${escapeHTML(eyebrow)}</p>`;
       return `
         <section class="micro-card" data-coach-card="true">
           ${model.meter || ""}
           <div>
-            <p class="eyebrow">${escapeHTML(model.eyebrow || "coach")}</p>
+            ${eyebrowMarkup}
             <h2 class="micro-title">${escapeHTML(model.title || "next step")}</h2>
             ${model.body ? `<p class="micro-body">${escapeHTML(model.body)}</p>` : ""}
           </div>
@@ -4490,7 +4565,12 @@
         const applied = state.practiceStep + (state.practiceStepDone ? 1 : 0);
         return positionAfterPracticeMoves(drill, applied);
       }
-      if (state.practiceMode === "test") return clonePosition(drill.testStart);
+      if (state.practiceMode === "test") {
+        if (state.practiceStepDone && drill.answers && drill.answers[0]) {
+          return applyPracticeMove(clonePosition(drill.testStart), drill.answers[0], false).position;
+        }
+        return clonePosition(drill.testStart);
+      }
       return clonePosition(drill.testStart || drill.demoStart);
     }
 
@@ -4568,7 +4648,7 @@
         const move = currentPracticeMove();
         return state.practiceSelected === move.from ? `Tap ${move.to}.` : `Tap ${move.from} first.`;
       }
-      if (state.practiceMode === "test") return "Find mate. Tap your piece, then its landing square.";
+      if (state.practiceMode === "test") return "Test Me: find mate. Tap your piece, then its landing square.";
       return "Choose a drill.";
     }
 
@@ -4579,7 +4659,7 @@
         return {
           eyebrow: "practice",
           title: "mating curriculum",
-          body: "Practice has two parts: Show Me, where the coach tells you the move and why, then Try It, where you do it yourself.",
+          body: "Pick a pattern. Show Me walks you through it. Test Me checks that you can finish it yourself.",
           feedback: state.feedback || `${done}/${PRACTICE.length} drills passed.`
         };
       }
@@ -4590,10 +4670,10 @@
           eyebrow: "coach",
           title: state.practiceStepDone ? "why that worked" : drill.title,
           body: state.practiceStepDone ? practiceMoveResult(drill, move, before) : practiceMoveInstruction(drill, move, before, state.practiceSelected),
-          feedback: state.feedback || (state.practiceStepDone ? "Press next." : practicePrompt()),
+          feedback: state.feedback || (state.practiceStepDone ? "Next." : practicePrompt()),
           actions: `
             <div class="action-row">
-              <button class="small-button" type="button" data-action="practice-menu">menu</button>
+              <button class="small-button" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(drill.id)}" data-practice-mode="test">test me</button>
               <button class="primary-button" type="button" data-action="practice-next-step" ${state.practiceStepDone ? "" : "disabled"}>${state.practiceStep >= drill.demoMoves.length - 1 ? "finish show me" : "next"}</button>
             </div>
           `
@@ -4608,10 +4688,10 @@
           feedback: state.feedback || (state.practiceSelected ? "Now tap the landing square." : practicePrompt()),
           actions: `
             <div class="action-row">
-              <button class="small-button" type="button" data-action="practice-menu">menu</button>
+              <button class="small-button" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(drill.id)}" data-practice-mode="demo">show me</button>
               ${passed
                 ? `<button class="primary-button" type="button" data-action="practice-next">next round</button>`
-                : `<button class="primary-button" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(drill.id)}" data-practice-mode="demo">show me</button>`
+                : `<button class="primary-button" type="button" disabled>test me</button>`
               }
             </div>
           `
@@ -5116,7 +5196,7 @@
             <div>
               <p class="eyebrow">practice</p>
               <h2 class="macro-title">mate patterns</h2>
-              <p class="plain-text">Each round has Show Me, then Try It. The coach explains the move, then you do it alone.</p>
+              <p class="plain-text">Pick one pattern. Show Me teaches it. Test Me checks it.</p>
             </div>
           </section>
           <section class="drill-list">
@@ -5134,7 +5214,7 @@
                   </div>
                   <div class="action-row">
                     <button class="small-button" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(drill.id)}" data-practice-mode="demo">show me</button>
-                    <button class="primary-button" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(drill.id)}" data-practice-mode="test">try it</button>
+                    <button class="primary-button" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(drill.id)}" data-practice-mode="test">test me</button>
                   </div>
                 </article>
               `;
@@ -5150,6 +5230,10 @@
               <p class="eyebrow">practice</p>
               <h2 class="macro-title">${escapeHTML(item.title)}</h2>
               <p class="plain-text">${escapeHTML(item.intro)}</p>
+              <div class="action-row">
+                <button class="${state.practiceMode === "demo" ? "primary-button" : "small-button"}" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(item.id)}" data-practice-mode="demo" aria-pressed="${state.practiceMode === "demo"}">show me</button>
+                <button class="${state.practiceMode === "test" ? "primary-button" : "small-button"}" type="button" data-action="start-practice-phase" data-drill-id="${escapeHTML(item.id)}" data-practice-mode="test" aria-pressed="${state.practiceMode === "test"}">test me</button>
+              </div>
             </div>
           </section>
           ${renderBoard({
@@ -5196,11 +5280,41 @@
       `;
     }
 
+    function renderPlayCoachCard(play) {
+      const title = play.result
+        ? play.result === "soft"
+          ? "you won"
+          : play.result === "bot"
+            ? "bot won"
+            : "draw"
+        : play.turn === "soft"
+          ? "your move"
+          : "bot move";
+      const body = play.coachMessage || play.message || play.status || "Tap a soft pink piece, then tap where you want it to go.";
+      return `
+        <section class="play-coach-card">
+          <div class="play-coach-head">
+            <p class="eyebrow">real game</p>
+            <h2 class="micro-title">${escapeHTML(title)}</h2>
+            <p class="micro-body" role="status">${escapeHTML(body)}</p>
+          </div>
+          <div class="play-controls">
+            <button class="small-button" type="button" data-action="play-ask" aria-pressed="${play.moveOptionsOn}" ${play.result ? "disabled" : ""}>
+              ${play.moveOptionsOn ? "options off" : "move options"}
+            </button>
+            <button class="primary-button" type="button" data-action="play-hint" ${play.turn !== "soft" || play.result ? "disabled" : ""}>
+              hint
+            </button>
+            <button class="small-button" type="button" data-action="play-new">new game</button>
+          </div>
+        </section>
+      `;
+    }
+
     function renderPlay() {
       if (!allLessonsPassed()) {
         const nextIndex = nextIncompleteLessonIndex();
         const nextLesson = LESSONS[nextIndex];
-        layout.classList.remove("coach-off");
         stageLabel.textContent = "play locked";
         stage.innerHTML = `
           <section class="about-card">
@@ -5209,43 +5323,31 @@
             <p class="plain-text">Finish the lesson path first. Then you can practice inside a real game.</p>
             <p class="plain-text">Next lesson to pass: ${escapeHTML(nextLesson.label)}.</p>
           </section>
+          ${renderCoachCard({
+            eyebrow: "next step",
+            title: nextLesson.title,
+            body: "Go back to lessons and pass this test first.",
+            actions: `<button class="primary-button" type="button" data-action="go-needed-lesson">go to lesson</button>`
+          })}
         `;
-        coach.innerHTML = renderCoachCard({
-          eyebrow: "next step",
-          title: nextLesson.title,
-          body: "Go back to lessons and pass this test first.",
-          actions: `<button class="primary-button" type="button" data-action="go-needed-lesson">go to lesson</button>`
-        });
         return;
       }
 
       const play = ensurePlayState();
       const selected = play.selected ? new Set([play.selected]) : new Set();
       const highlights = new Set(play.hintSquares || []);
-      const coachModel = getCoachMessage();
-      layout.classList.toggle("coach-off", !coachModel);
-      stageLabel.textContent = "play";
+      stageLabel.textContent = "coach";
       stage.innerHTML = `
-        <section class="macro-card">
-          <div>
-            <p class="eyebrow">real game</p>
-            <h2 class="macro-title">${play.turn === "soft" ? "your move" : "bot move"}</h2>
-            <p class="plain-text">${escapeHTML(play.message || play.status)}</p>
-          </div>
-          <button class="focus-toggle" type="button" aria-pressed="${play.coachOn}" data-action="play-coach-toggle">
-            ${play.coachOn ? "coach off" : "coach on"}
-          </button>
-        </section>
+        ${renderPlayCoachCard(play)}
         ${renderBoard({
           positionItems: play.position,
           selected,
-          legal: play.coachOn && play.moveOptionsOn ? play.legal : [],
+          legal: play.moveOptionsOn ? play.legal : [],
           highlights,
           lastMove: []
         })}
         ${play.pendingPromotion ? renderPromotionChooser() : ""}
       `;
-      coach.innerHTML = renderCoachCard(coachModel);
     }
 
     function render() {
@@ -5408,10 +5510,40 @@
     }
 
     function startPracticePhase(drillId, mode = "demo", feedback = "") {
+      clearPracticeAdvance();
       setPracticePhase(drillId, mode);
       state.feedback = feedback;
       render();
       scrollStageIntoView();
+    }
+
+    function openPracticeMenu(feedback = "") {
+      clearPracticeAdvance();
+      clearPracticeFlash();
+      clearPracticeItem(state.practiceIndex);
+      state.practiceMode = "menu";
+      state.practiceIndex = 0;
+      state.feedback = feedback;
+      render();
+      scrollStageIntoView();
+    }
+
+    function scheduleNextPracticeAfterPass(drillTitle) {
+      clearPracticeAdvance();
+      const currentIndex = state.practiceIndex;
+      const next = PRACTICE[currentIndex + 1];
+      if (!next) {
+        practiceAdvanceTimer = window.setTimeout(() => {
+          practiceAdvanceTimer = null;
+          openPracticeMenu("Practice path complete. Pick any pattern to refresh.");
+        }, 900);
+        return;
+      }
+      practiceAdvanceTimer = window.setTimeout(() => {
+        practiceAdvanceTimer = null;
+        if (state.view !== "practice" || state.practiceIndex !== currentIndex || state.practiceMode !== "test") return;
+        startPracticePhase(next.id, "demo", `Passed ${drillTitle}. Next: ${next.title}.`);
+      }, 900);
     }
 
     function completePracticeStep() {
@@ -5434,7 +5566,7 @@
       state.practiceStepDone = false;
       state.practiceSelected = null;
       state.practiceHintLevel = 0;
-      state.feedback = "Show Me complete. Try it without the coach giving the answer first.";
+      state.feedback = "Test Me.";
       render();
     }
 
@@ -5446,7 +5578,7 @@
         return;
       }
       if (state.practiceMode === "menu") {
-        state.feedback = "Choose Show Me or Try It first.";
+        state.feedback = "Choose Show Me or Test Me first.";
         render();
         return;
       }
@@ -5490,7 +5622,7 @@
         }
         state.practiceStepDone = true;
         state.practiceSelected = null;
-        state.feedback = "Good. The coach will explain why.";
+        state.feedback = "";
         render();
         return;
       }
@@ -5542,8 +5674,9 @@
         state.completedDrills = { ...(state.completedDrills || {}), [drill.id]: true };
         state.practiceStepDone = true;
         state.practiceSelected = null;
-        state.feedback = "Checkmate. Drill passed.";
+        state.feedback = "Checkmate. Drill passed. Next pattern is loading.";
         render();
+        scheduleNextPracticeAfterPass(drill.title);
         return;
       }
 
@@ -5689,7 +5822,10 @@
         if (state.view === "lessons") {
           state.lessonMode = state.lessonMode === "complete" ? "demo" : state.lessonMode || "demo";
         }
-        if (state.view === "practice") clearPracticeItem(state.practiceIndex);
+        if (state.view === "practice") {
+          openPracticeMenu("");
+          return;
+        }
         if (state.view === "play") ensurePlayState();
         state.feedback = "";
         render();
@@ -5745,11 +5881,7 @@
         startPracticePhase(drillId, mode);
       }
       if (action === "practice-menu") {
-        clearPracticeFlash();
-        clearPracticeItem(state.practiceIndex);
-        state.practiceMode = "menu";
-        state.feedback = "";
-        render();
+        openPracticeMenu("");
       }
       if (action === "practice-next-step") {
         completePracticeStep();
@@ -5778,9 +5910,7 @@
       if (action === "go-practice") {
         clearAllTransient();
         state.view = "practice";
-        state.practiceIndex = 0;
-        state.practiceMode = "menu";
-        render();
+        openPracticeMenu("");
       }
       if (action === "go-play") {
         clearAllTransient();
@@ -5970,8 +6100,30 @@
     }, 1200);
 
     if ("serviceWorker" in navigator) {
+      let serviceWorkerRefreshing = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (serviceWorkerRefreshing) return;
+        serviceWorkerRefreshing = true;
+        window.location.reload();
+      });
       window.addEventListener("load", () => {
-        navigator.serviceWorker.register("service-worker.js").catch(() => {});
+        navigator.serviceWorker.register("service-worker.js", { updateViaCache: "none" })
+          .then(registration => {
+            if (registration.waiting) {
+              registration.waiting.postMessage({ type: "SKIP_WAITING" });
+            }
+            registration.addEventListener("updatefound", () => {
+              const worker = registration.installing;
+              if (!worker) return;
+              worker.addEventListener("statechange", () => {
+                if (worker.state === "installed" && navigator.serviceWorker.controller) {
+                  worker.postMessage({ type: "SKIP_WAITING" });
+                }
+              });
+            });
+            registration.update().catch(() => {});
+          })
+          .catch(() => {});
       });
     }
 
