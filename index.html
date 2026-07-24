@@ -831,13 +831,53 @@
     .about-footer {
       border: 0;
       background: transparent;
-      padding: 4px 4px 2px;
+      padding: 8px 4px 4px;
       font-size: 13px;
+      display: flex;
+      justify-content: center;
     }
 
-    /* On the About view the window already says "about" — drop the duplicate footer. */
-    #app[data-view="about"] .about-footer {
-      display: none;
+    /* About opens in its own floating window (modal), so it never joins the four top tabs. */
+    .about-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      background: rgba(21, 16, 21, 0.42);
+    }
+
+    .about-window {
+      width: min(540px, 100%);
+      max-height: min(88vh, 900px);
+      display: flex;
+      flex-direction: column;
+      border: 2px solid var(--line);
+      background: rgba(255, 250, 253, 0.98);
+      box-shadow: var(--shadow);
+    }
+
+    .about-close {
+      width: 22px;
+      height: 22px;
+      display: grid;
+      place-items: center;
+      border: 1.5px solid var(--line);
+      background: var(--white);
+      font-family: "Silkscreen", monospace;
+      font-size: 14px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .about-window-body {
+      min-height: 0;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 14px;
+      display: grid;
+      gap: 12px;
     }
 
     .about-footer details {
@@ -858,16 +898,21 @@
     }
 
     .footer-about-button {
-      min-height: 34px;
+      min-height: 40px;
       display: inline-flex;
       align-items: center;
-      border: 0;
-      background: transparent;
-      padding: 0 10px 0 0;
+      justify-content: center;
+      border: 2px solid var(--line-soft);
+      background: var(--white);
+      padding: 0 22px;
       font-family: "Silkscreen", monospace;
-      font-size: 10px;
+      font-size: 11px;
       text-transform: lowercase;
       cursor: pointer;
+    }
+
+    .footer-about-button:hover {
+      background: var(--pink-1);
     }
 
     .about-footer p {
@@ -1286,13 +1331,16 @@
     <footer class="about-footer">
       <button class="footer-about-button" type="button" data-action="open-about">about</button>
     </footer>
+    <div id="aboutModal"></div>
   </div>
 
   <script>
-    const APP_VERSION = "Girl Chess v4.9";
+    const APP_VERSION = "Girl Chess v4.10";
     const STORAGE_KEY = "girl-chess-progress-v1";
     // Move Options preference persists across new games (and reloads) until turned off.
     var moveOptionsPref = false;
+    // Guards the About window from closing on the same tap that opened it.
+    var aboutOpenedAt = 0;
     const DIFFICULTIES = ["easy", "normal", "hard"];
     const WIN_UPGRADE_TARGET = 2;
     const PLAY_MODES = ["real"];
@@ -3835,6 +3883,7 @@
       drillType: "rook",
       resetConfirm: false,
       aboutOpenPanel: "",
+      aboutOpen: false,
       play: null
     };
 
@@ -3857,6 +3906,7 @@
         const next = { ...defaultState, ...saved };
         if (next.view === "learn") next.view = "lessons";
         if (next.view === "about") next.view = "lessons";
+        next.aboutOpen = false;
         next.foundByStep = {};
         next.answerShownByStep = {};
         next.revealedByStep = {};
@@ -3920,6 +3970,7 @@
         legendPhase,
         resetConfirm,
         aboutOpenPanel,
+        aboutOpen,
         ...persisted
       } = state;
       if (persisted.play) {
@@ -5286,9 +5337,8 @@
       }
     }
 
-    function renderAbout() {
-      stageLabel.textContent = "about";
-      stage.innerHTML = `
+    function aboutBodyHTML() {
+      return `
         <section class="about-card">
           <h2 class="view-title">girl chess</h2>
           <p class="plain-text">A soft pink chess tutor for total beginners.</p>
@@ -5296,6 +5346,34 @@
           <p class="version">${APP_VERSION}<br>Built for April Korto Quioh</p>
         </section>
         ${renderAboutPanel()}
+      `;
+    }
+
+    function renderAbout() {
+      stageLabel.textContent = "about";
+      stage.innerHTML = aboutBodyHTML();
+    }
+
+    // About opens as its own window over the current tab — it never replaces the four tabs.
+    function renderAboutModal() {
+      const modal = document.getElementById("aboutModal");
+      if (!modal) return;
+      if (!state.aboutOpen) {
+        modal.innerHTML = "";
+        return;
+      }
+      modal.innerHTML = `
+        <div class="about-overlay" data-about-overlay="true">
+          <section class="about-window" role="dialog" aria-modal="true" aria-label="About Girl Chess">
+            <div class="window-bar">
+              <span>about</span>
+              <button class="about-close" type="button" data-action="close-about" aria-label="close about">×</button>
+            </div>
+            <div class="about-window-body">
+              ${aboutBodyHTML()}
+            </div>
+          </section>
+        </div>
       `;
     }
 
@@ -5392,7 +5470,6 @@
     }
 
     function render() {
-      app.setAttribute("data-view", state.view);
       app.classList.toggle("is-focus", state.focusMode && state.view === "lessons");
       app.classList.toggle("is-practice-clean", state.practiceClean && state.view === "practice" && allLessonsPassed());
       document.querySelectorAll(".tab-button").forEach(button => {
@@ -5420,6 +5497,7 @@
         renderAbout();
       }
       renderAboutFooter();
+      renderAboutModal();
       saveState();
     }
 
@@ -5858,6 +5936,16 @@
     }
 
     document.addEventListener("click", event => {
+      // Tapping the shaded backdrop (outside the window) closes the About window.
+      // Ignore a backdrop hit within 300ms of opening so the opening tap can't also close it.
+      if (state.aboutOpen && event.target.dataset && event.target.dataset.aboutOverlay === "true") {
+        if (Date.now() - aboutOpenedAt > 300) {
+          state.aboutOpen = false;
+          render();
+        }
+        return;
+      }
+
       const squareButton = event.target.closest("[data-square]");
       if (squareButton) {
         handleSquare(squareButton.dataset.square);
@@ -5883,6 +5971,7 @@
         clearFlashFeedback();
         clearHintFlash();
         clearAllTransient();
+        state.aboutOpen = false;
         state.view = viewButton.dataset.view;
         if (state.view === "lessons") {
           state.lessonMode = state.lessonMode === "complete" ? "demo" : state.lessonMode || "demo";
@@ -5919,11 +6008,13 @@
         render();
       }
       if (action === "open-about") {
-        clearAllTransient();
-        clearHintFlash();
-        state.view = "about";
         state.aboutOpenPanel = "";
-        state.feedback = "";
+        state.aboutOpen = true;
+        aboutOpenedAt = Date.now();
+        render();
+      }
+      if (action === "close-about") {
+        state.aboutOpen = false;
         render();
       }
       if (action === "start-test") {
@@ -5985,6 +6076,7 @@
       if (action === "review-lessons") {
         clearAllTransient();
         clearHintFlash();
+        state.aboutOpen = false;
         state.view = "lessons";
         state.lessonIndex = Math.min(state.lessonIndex || 0, LESSONS.length - 1);
         state.stepIndex = 0;
