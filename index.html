@@ -1034,6 +1034,30 @@
       border-bottom: 2px solid var(--line-soft);
     }
 
+    /* The "checkmate" prompt that appears only when a forced mate is on the board. */
+    .mate-callout {
+      width: 100%;
+      min-height: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 6px 10px;
+      border: 2px solid var(--line);
+      background: var(--pink-4);
+      color: var(--white);
+      font-family: "Silkscreen", monospace;
+      font-size: 12px;
+      line-height: 1.2;
+      text-transform: lowercase;
+      cursor: pointer;
+    }
+
+    .mate-callout.is-on,
+    .mate-callout:hover {
+      background: var(--pink-5);
+    }
+
     .mode-card {
       padding: 10px;
       border: 2px solid var(--line-soft);
@@ -1335,7 +1359,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "Girl Chess v4.10";
+    const APP_VERSION = "Girl Chess v4.11";
     const STORAGE_KEY = "girl-chess-progress-v1";
     // Move Options preference persists across new games (and reloads) until turned off.
     var moveOptionsPref = false;
@@ -1924,6 +1948,86 @@
       return false;
     }
 
+    // ---- Forced-checkmate finder (powers the Play "checkmate" guide) ----
+    // How many half-moves deep to look for a forced mate, and a node cap so it can never hang.
+    // Run deeper searches only as the board simplifies — a "clear path near the end" — so it stays fast.
+    // Node budgets cap worst-case time; the deep search runs only with few (cheap) pieces, so it
+    // can afford a larger budget to confirm a real forced mate-in-3.
+    var MATE_IN_2_PIECE_LIMIT = 10; // mate-in-2 search allowed up to this many pieces
+    var MATE_IN_2_BUDGET = 1200;
+    var MATE_IN_3_PIECE_LIMIT = 6;  // mate-in-3 only in real endgames (few, cheap pieces)
+    var MATE_IN_3_BUDGET = 3200;
+
+    function positionSignature(play) {
+      const pieces = play.position
+        .map(piece => `${piece.side[0]}${piece.piece[0]}${piece.square}`)
+        .sort()
+        .join("");
+      const cr = play.castleRights;
+      const crStr = cr ? `${cr.soft.king}${cr.soft.queen}${cr.dark.king}${cr.dark.queen}` : "";
+      return `${play.turn}|${pieces}|${crStr}|${play.enPassantTarget || "-"}`;
+    }
+
+    function isMatingMove(play, move) {
+      const after = applyGameMoveSnapshot(play, move, "queen", false);
+      return allLegalGameMoves(after, after.turn).length === 0 && isKingInCheck(after.position, after.turn);
+    }
+
+    // Returns a move for play.turn that FORCES checkmate within `plies` half-moves, else null.
+    // By construction it only returns a genuinely forced mate (no false positives). A depleted
+    // node budget makes it give up (returns null) rather than guess — so it never over-promises.
+    function forcedMateMove(play, plies, budget) {
+      if (play.result || plies < 1) return null;
+      const attacker = play.turn;
+      const moves = allLegalGameMoves(play, attacker);
+      for (const move of moves) {
+        if (budget.n <= 0) return null;
+        budget.n -= 1;
+        const afterAttack = applyGameMoveSnapshot(play, move, "queen", false);
+        const defenderReplies = allLegalGameMoves(afterAttack, afterAttack.turn);
+        if (defenderReplies.length === 0) {
+          if (isKingInCheck(afterAttack.position, afterAttack.turn)) return move; // checkmate now
+          continue; // stalemate is not a mate
+        }
+        if (plies < 3) continue; // no depth left to force mate after the reply
+        let forced = true;
+        for (const reply of defenderReplies) {
+          if (budget.n <= 0) { forced = false; break; }
+          budget.n -= 1;
+          const afterReply = applyGameMoveSnapshot(afterAttack, reply, "queen", false);
+          if (!forcedMateMove(afterReply, plies - 2, budget)) { forced = false; break; }
+        }
+        if (forced) return move;
+      }
+      return null;
+    }
+
+    // Cache the forced-mate move for the current soft-to-move position (recomputed only on change).
+    function ensureMateInfo(play) {
+      if (play.result || play.turn !== "soft" || play.busy || play.playMode !== "real") {
+        play.mateMove = null;
+        play.mateSig = null;
+        return null;
+      }
+      const sig = positionSignature(play);
+      if (play.mateSig === sig && play.mateMove !== undefined) return play.mateMove;
+      play.mateSig = sig;
+      // Iterative deepening: find the SHORTEST forced mate so the guided move always makes
+      // progress (returning any move that merely mates "within N" could pick a slow shuffle
+      // that never converges). Mate-in-1 is cheap and always checked; deeper searches run
+      // only once the board is simplified (keeps it fast and matches "near the end").
+      const pieceCount = play.position.length;
+      let mate = forcedMateMove(play, 1, { n: 400 });
+      if (!mate && pieceCount <= MATE_IN_2_PIECE_LIMIT) {
+        mate = forcedMateMove(play, 3, { n: MATE_IN_2_BUDGET });
+      }
+      if (!mate && pieceCount <= MATE_IN_3_PIECE_LIMIT) {
+        mate = forcedMateMove(play, 5, { n: MATE_IN_3_BUDGET });
+      }
+      play.mateMove = mate || null;
+      return play.mateMove;
+    }
+
     function allBoardSquares() {
       return FILES.flatMap(file => RANKS.map(rank => `${file}${rank}`));
     }
@@ -2150,6 +2254,9 @@
         askMode: false,
         moveOptionsOn: moveOptionsPref,
         kingPreview: null,
+        mateGuide: false,
+        mateMove: null,
+        mateSig: null,
         hintLevel: 0,
         hintSquares: [],
         coachMessage: "",
@@ -3944,6 +4051,9 @@
           next.play.askMode = false;
           next.play.moveOptionsOn = Boolean(next.play.moveOptionsOn);
           next.play.kingPreview = null;
+          next.play.mateGuide = false;
+          next.play.mateMove = null;
+          next.play.mateSig = null;
           next.play.coachMessage = "";
           next.play.message = "";
           next.play.legal = [];
@@ -3981,6 +4091,9 @@
           hintSquares: [],
           hintLevel: 0,
           kingPreview: null,
+          mateMove: null,
+          mateSig: null,
+          mateGuide: false,
           pendingPromotion: null,
           coachMessage: "",
           message: "",
@@ -5405,6 +5518,13 @@
           ? "your move"
           : "bot move";
       const body = play.coachMessage || play.message || play.status || "Tap a soft pink piece, then tap where you want it to go.";
+      const mateAvailable = play.mateMove && !play.result && play.turn === "soft" && !play.busy;
+      const guiding = mateAvailable && play.mateGuide;
+      const mateCallout = mateAvailable
+        ? `<button class="mate-callout ${guiding ? "is-on" : ""}" type="button" data-action="play-mate" aria-pressed="${guiding}">
+             ${guiding ? "hide checkmate path" : "checkmate — show me the path"}
+           </button>`
+        : "";
       return `
         <section class="play-coach-card">
           <div class="play-coach-head">
@@ -5412,6 +5532,7 @@
             <h2 class="micro-title">${escapeHTML(title)}</h2>
             <p class="micro-body" role="status">${escapeHTML(body)}</p>
           </div>
+          ${mateCallout}
           <div class="play-controls">
             <button class="small-button" type="button" data-action="play-ask" aria-pressed="${play.moveOptionsOn}" ${play.result ? "disabled" : ""}>
               ${play.moveOptionsOn ? "options off" : "move options"}
@@ -5448,13 +5569,24 @@
       }
 
       const play = ensurePlayState();
+      const mateMove = ensureMateInfo(play);
+      const guiding = Boolean(play.mateGuide && mateMove && play.turn === "soft" && !play.busy && !play.result);
+      if (guiding) {
+        const guidePiece = pieceAtSquare(play.position, mateMove.from);
+        const pieceName = guidePiece && PIECE_BY_ID[guidePiece.piece] ? PIECE_BY_ID[guidePiece.piece].name : "piece";
+        play.coachMessage = isMatingMove(play, mateMove)
+          ? `Checkmate move: put your ${pieceName} from ${mateMove.from} to ${mateMove.to}. That ends the game.`
+          : `Checkmate path: move your ${pieceName} from ${mateMove.from} to ${mateMove.to}.`;
+      }
       const preview = play.moveOptionsOn && play.kingPreview ? play.kingPreview : null;
       const selected = play.selected
         ? new Set([play.selected])
         : preview
           ? new Set([preview.from])
           : new Set();
-      const highlights = new Set(play.hintSquares || []);
+      const highlights = guiding
+        ? new Set([mateMove.from, mateMove.to])
+        : new Set(play.hintSquares || []);
       stageLabel.textContent = "coach";
       stage.innerHTML = `
         ${renderPlayCoachCard(play)}
@@ -6175,6 +6307,14 @@
       if (action === "play-hint") {
         const play = ensurePlayState();
         applyCoachHint(play);
+        render();
+      }
+      if (action === "play-mate") {
+        clearHintFlash();
+        const play = ensurePlayState();
+        ensureMateInfo(play);
+        play.mateGuide = play.mateMove ? !play.mateGuide : false;
+        play.kingPreview = null;
         render();
       }
       if (action === "play-ask") {
