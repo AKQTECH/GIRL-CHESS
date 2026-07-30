@@ -1120,6 +1120,17 @@
       border-color: var(--line);
     }
 
+    .drill-card.challenge-entry {
+      border-color: var(--line);
+      background: var(--pink-1);
+    }
+
+    .drill-card.challenge-entry .drill-number {
+      background: var(--pink-4);
+      color: var(--white);
+      font-size: 18px;
+    }
+
     .drill-card-head {
       display: grid;
       grid-template-columns: 42px 1fr auto;
@@ -1359,7 +1370,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "Girl Chess v4.11";
+    const APP_VERSION = "Girl Chess v4.12";
     const STORAGE_KEY = "girl-chess-progress-v1";
     // Move Options preference persists across new games (and reloads) until turned off.
     var moveOptionsPref = false;
@@ -1971,6 +1982,142 @@
     function isMatingMove(play, move) {
       const after = applyGameMoveSnapshot(play, move, "queen", false);
       return allLegalGameMoves(after, after.turn).length === 0 && isKingInCheck(after.position, after.turn);
+    }
+
+    // ---- Plain-language checkmate reasoning (Play win message + Practice checkmate challenge) ----
+    function singlePieceAttacks(position, piece, square) {
+      const from = squareParts(piece.square);
+      const target = squareParts(square);
+      const fileDelta = target.fileIndex - from.fileIndex;
+      const rankDelta = target.rank - from.rank;
+      const absFile = Math.abs(fileDelta);
+      const absRank = Math.abs(rankDelta);
+      if (absFile === 0 && absRank === 0) return false;
+      if (piece.piece === "pawn") { const dir = piece.side === "soft" ? 1 : -1; return absFile === 1 && rankDelta === dir; }
+      if (piece.piece === "knight") return (absFile === 1 && absRank === 2) || (absFile === 2 && absRank === 1);
+      if (piece.piece === "king") return Math.max(absFile, absRank) === 1;
+      if ((piece.piece === "rook" || piece.piece === "queen") && (fileDelta === 0 || rankDelta === 0)) {
+        return isPathClear(position, piece.square, square, fileDelta === 0 ? 0 : Math.sign(fileDelta), rankDelta === 0 ? 0 : Math.sign(rankDelta));
+      }
+      if ((piece.piece === "bishop" || piece.piece === "queen") && absFile === absRank) {
+        return isPathClear(position, piece.square, square, Math.sign(fileDelta), Math.sign(rankDelta));
+      }
+      return false;
+    }
+
+    function attackersOf(position, square, side) {
+      return position.filter(pc => pc.side === side && singlePieceAttacks(position, pc, square));
+    }
+
+    function kingNeighborSquares(square) {
+      const { fileIndex, rank } = squareParts(square);
+      const out = [];
+      for (let df = -1; df <= 1; df += 1) {
+        for (let dr = -1; dr <= 1; dr += 1) {
+          if (!df && !dr) continue;
+          const sq = squareName(fileIndex + df, rank + dr);
+          if (sq) out.push(sq);
+        }
+      }
+      return out;
+    }
+
+    function lineWordBetween(a, b) {
+      const pa = squareParts(a);
+      const pb = squareParts(b);
+      if (pa.rank === pb.rank) return "row";
+      if (pa.fileIndex === pb.fileIndex) return "column";
+      return "slanted line";
+    }
+
+    function isFarApart(a, b) {
+      const pa = squareParts(a);
+      const pb = squareParts(b);
+      return Math.max(Math.abs(pa.fileIndex - pb.fileIndex), Math.abs(pa.rank - pb.rank)) >= 3;
+    }
+
+    function pieceLabel(piece) {
+      return piece && PIECE_BY_ID[piece.piece] ? PIECE_BY_ID[piece.piece].name : "piece";
+    }
+
+    function findMateInOne(position) {
+      const play = practicePlay(position, "soft");
+      return allLegalGameMoves(play, "soft").find(move => isMatingMove(play, move)) || null;
+    }
+
+    // Explain, for a total beginner, WHY the dark king is checkmated in this position.
+    function explainCheckmate(position) {
+      const king = position.find(pc => pc.side === "dark" && pc.piece === "king");
+      if (!king) return "That is checkmate.";
+      const kSq = king.square;
+      const checkers = attackersOf(position, kSq, "soft");
+      const checker = checkers[0];
+      const parts = [];
+      if (checker) {
+        let lead = `Your ${pieceLabel(checker)} on ${checker.square} is attacking the dark king on ${kSq}`;
+        if (isFarApart(checker.square, kSq) && ["rook", "queen", "bishop"].includes(checker.piece)) {
+          lead += ` from far away — it controls the whole ${lineWordBetween(checker.square, kSq)} up to the king`;
+        }
+        parts.push(lead + ".");
+      }
+      const neighbors = kingNeighborSquares(kSq);
+      const coveredBy = {};
+      const blocked = [];
+      neighbors.forEach(sq => {
+        const occ = pieceAtSquare(position, sq);
+        if (occ && occ.side === "dark") { blocked.push(sq); return; }
+        const guards = attackersOf(position, sq, "soft");
+        if (guards.length) {
+          const key = `${pieceLabel(guards[0])} on ${guards[0].square}`;
+          (coveredBy[key] = coveredBy[key] || []).push(sq);
+        }
+      });
+      const runBits = [];
+      Object.entries(coveredBy).forEach(([guard, sqs]) => {
+        runBits.push(`${sqs.join(" and ")} ${sqs.length > 1 ? "are" : "is"} covered by your ${guard}`);
+      });
+      if (blocked.length) runBits.push(`${blocked.join(" and ")} ${blocked.length > 1 ? "are" : "is"} blocked by its own pieces`);
+      if (runBits.length) parts.push(`The king has nowhere to run: ${runBits.join("; ")}.`);
+      if (checker && neighbors.includes(checker.square)) {
+        const defenders = attackersOf(position, checker.square, "soft");
+        if (defenders.length) parts.push(`It can't take your ${pieceLabel(checker)} either — your ${pieceLabel(defenders[0])} on ${defenders[0].square} guards it.`);
+      }
+      parts.push("That's checkmate.");
+      return parts.join(" ");
+    }
+
+    // Explain why a legal-but-wrong move does NOT deliver checkmate (Practice challenge feedback).
+    function explainWrongAnswer(position, move) {
+      const pieceName = movePieceName(position, move);
+      const play = practicePlay(position, "soft");
+      const after = applyGameMoveSnapshot(play, moveForEngine(position, move), "queen", false);
+      const dk = after.position.find(pc => pc.side === "dark" && pc.piece === "king");
+      if (!dk) return "No — that does not checkmate the king.";
+      const checkers = attackersOf(after.position, dk.square, "soft");
+      if (!checkers.length) {
+        return `No — moving your ${pieceName} to ${move.to} doesn't even attack the dark king, so it can't be checkmate.`;
+      }
+      const darkMoves = allLegalGameMoves(after, "dark");
+      const checkerSqs = new Set(checkers.map(c => c.square));
+      const kingEscapes = darkMoves.filter(m => m.from === dk.square && !checkerSqs.has(m.to));
+      if (kingEscapes.length) {
+        return `Close — that's check, but the dark king can still slip to ${kingEscapes[0].to}. Your ${pieceName} doesn't take that square away.`;
+      }
+      const captures = darkMoves.filter(m => checkerSqs.has(m.to));
+      if (captures.length) {
+        const cap = captures[0];
+        const mover = pieceAtSquare(after.position, cap.from);
+        const checkerName = pieceLabel(pieceAtSquare(after.position, cap.to));
+        return mover.piece === "king"
+          ? `Close — that's check, but the dark king could just take your ${checkerName} on ${cap.to}.`
+          : `Close — that's check, but the dark ${pieceLabel(mover)} on ${cap.from} could just take your ${checkerName} on ${cap.to}.`;
+      }
+      const blocks = darkMoves.filter(m => m.from !== dk.square && !checkerSqs.has(m.to));
+      if (blocks.length) {
+        const blocker = pieceAtSquare(after.position, blocks[0].from);
+        return `Close — that's check, but the dark ${pieceLabel(blocker)} can block it by moving to ${blocks[0].to}.`;
+      }
+      return "No — the dark king still has a way out, so it isn't checkmate yet.";
     }
 
     // Returns a move for play.turn that FORCES checkmate within `plies` half-moves, else null.
@@ -3747,6 +3894,22 @@
 
     const PRACTICE = MATING_DRILLS;
 
+    // Checkmate Challenge: 10 preloaded positions where checkmate is available in ONE move.
+    // Every position is legal (neither king already in check) and has at least one mate-in-1.
+    // The lineup leans on far pieces controlling a whole row/column, since that is the hard part.
+    const CHECKMATE_CHALLENGE = [
+      { id: "cc-far-rook-g8", label: "the long rook", position: [p("g8", "king", "dark"), p("f7", "pawn", "dark"), p("g7", "pawn", "dark"), p("h7", "pawn", "dark"), p("g1", "king", "soft"), p("a1", "rook", "soft")] },
+      { id: "cc-far-rook-f8", label: "rook down the row", position: [p("f8", "king", "dark"), p("e7", "pawn", "dark"), p("f7", "pawn", "dark"), p("g7", "pawn", "dark"), p("g1", "king", "soft"), p("a1", "rook", "soft")] },
+      { id: "cc-far-queen-b8", label: "the far queen", position: [p("b8", "king", "dark"), p("a7", "pawn", "dark"), p("b7", "pawn", "dark"), p("c7", "pawn", "dark"), p("e1", "king", "soft"), p("h1", "queen", "soft")] },
+      { id: "cc-far-queen-h8", label: "queen across the board", position: [p("h8", "king", "dark"), p("f7", "pawn", "dark"), p("g7", "pawn", "dark"), p("h7", "pawn", "dark"), p("e1", "king", "soft"), p("a1", "queen", "soft")] },
+      { id: "cc-kr-corner", label: "king and rook: corner", position: [p("a8", "king", "dark"), p("a6", "king", "soft"), p("h1", "rook", "soft")] },
+      { id: "cc-kr-edge", label: "king and rook: edge", position: [p("e8", "king", "dark"), p("e6", "king", "soft"), p("h1", "rook", "soft")] },
+      { id: "cc-two-rooks", label: "two rooks, one far", position: [p("e8", "king", "dark"), p("a7", "rook", "soft"), p("h1", "rook", "soft"), p("g1", "king", "soft")] },
+      { id: "cc-kq-corner-h", label: "king and queen: box it", position: [p("h8", "king", "dark"), p("h7", "pawn", "dark"), p("f7", "king", "soft"), p("c1", "queen", "soft")] },
+      { id: "cc-kq-corner-a", label: "king and queen: other side", position: [p("a8", "king", "dark"), p("b6", "king", "soft"), p("h2", "queen", "soft")] },
+      { id: "cc-smothered", label: "the trapped king", position: [p("h8", "king", "dark"), p("g8", "rook", "dark"), p("g7", "pawn", "dark"), p("h7", "pawn", "dark"), p("a1", "king", "soft"), p("d6", "knight", "soft")] }
+    ];
+
     const DEMOS = {
       goal: {
         title: "logic of the whole game",
@@ -3991,6 +4154,13 @@
       resetConfirm: false,
       aboutOpenPanel: "",
       aboutOpen: false,
+      mateHelperOff: false,
+      challengeIndex: 0,
+      challengeSelected: null,
+      challengeStatus: null,
+      challengeMessage: "",
+      challengeShownMove: null,
+      challengeSolved: {},
       play: null
     };
 
@@ -4026,6 +4196,13 @@
         next.practiceStepDone = false;
         next.practiceSelected = null;
         next.practiceHintLevel = 0;
+        next.mateHelperOff = Boolean(next.mateHelperOff);
+        next.challengeIndex = Number.isInteger(next.challengeIndex) && next.challengeIndex >= 0 && next.challengeIndex < CHECKMATE_CHALLENGE.length ? next.challengeIndex : 0;
+        next.challengeSelected = null;
+        next.challengeStatus = null;
+        next.challengeMessage = "";
+        next.challengeShownMove = null;
+        next.challengeSolved = next.challengeSolved || {};
         next.completedDrills = next.completedDrills || {};
         next.difficulty = DIFFICULTIES.includes(next.difficulty) ? next.difficulty : "easy";
         next.playMode = PLAY_MODES.includes(next.playMode) ? next.playMode : "real";
@@ -4081,6 +4258,10 @@
         resetConfirm,
         aboutOpenPanel,
         aboutOpen,
+        challengeSelected,
+        challengeStatus,
+        challengeMessage,
+        challengeShownMove,
         ...persisted
       } = state;
       if (persisted.play) {
@@ -4623,6 +4804,13 @@
             <p class="eyebrow">difficulty</p>
             <p>Current: ${escapeHTML(state.difficulty)} (${escapeHTML(difficultyCopy())}). Wins here: ${wins}/${WIN_UPGRADE_TARGET}.</p>
             ${renderDifficultyButtons()}
+          </section>
+          <section class="about-subpanel">
+            <p class="eyebrow">checkmate helper</p>
+            <p>In a real game, show the "checkmate — show me the path" button when a forced mate is on the board. Turn it off if you want to find mates on your own.</p>
+            <button class="focus-toggle" type="button" aria-pressed="${!state.mateHelperOff}" data-action="toggle-mate-helper">
+              ${state.mateHelperOff ? "helper off" : "helper on"}
+            </button>
           </section>
           ${renderLessonRecovery()}
           <details class="about-subpanel" data-panel="reset-options" ${state.aboutOpenPanel === "reset-options" ? "open" : ""}>
@@ -5407,7 +5595,12 @@
       const revealed = getRevealSet(key);
 
       stageLabel.textContent = "practice";
+      if (state.practiceMode === "challenge") {
+        renderChallengeView();
+        return;
+      }
       if (state.practiceMode === "menu") {
+        const challengeDone = CHECKMATE_CHALLENGE.filter(pz => state.challengeSolved && state.challengeSolved[pz.id]).length;
         stage.innerHTML = `
           <section class="macro-card">
             <div>
@@ -5432,6 +5625,17 @@
                 </article>
               `;
             }).join("")}
+            <article class="drill-card challenge-entry">
+              <div class="drill-card-head">
+                <span class="drill-number">★</span>
+                <div>
+                  <h2 class="drill-title">checkmate challenge</h2>
+                  <p class="drill-body">${CHECKMATE_CHALLENGE.length} puzzles. Each one has checkmate in a single move — spot it. Get it wrong and it explains why.</p>
+                </div>
+                <span class="drill-status">${challengeDone ? `${challengeDone}/${CHECKMATE_CHALLENGE.length}` : "test"}</span>
+              </div>
+              <button class="primary-button" type="button" data-action="start-challenge">start challenge</button>
+            </article>
           </section>
         `;
       } else {
@@ -5448,6 +5652,54 @@
           })}
         `;
       }
+    }
+
+    function renderChallengeView() {
+      const total = CHECKMATE_CHALLENGE.length;
+      const idx = Math.min(Math.max(state.challengeIndex, 0), total - 1);
+      const puzzle = CHECKMATE_CHALLENGE[idx];
+      const basePosition = clonePosition(puzzle.position);
+      const shown = state.challengeShownMove;
+      const displayPosition = shown ? applyPracticeMove(basePosition, shown, false).position : basePosition;
+      const selected = (!shown && state.challengeSelected) ? new Set([state.challengeSelected]) : new Set();
+      const highlights = shown ? new Set([shown.from, shown.to]) : new Set();
+      const solvedCount = CHECKMATE_CHALLENGE.filter(pz => state.challengeSolved && state.challengeSolved[pz.id]).length;
+      const isLast = idx >= total - 1;
+      const finished = state.challengeStatus === "solved" || state.challengeStatus === "revealed";
+
+      let body;
+      let actions;
+      if (finished) {
+        body = state.challengeMessage;
+        actions = `
+          <div class="action-row">
+            ${isLast
+              ? `<button class="primary-button" type="button" data-action="challenge-finish">finish · ${solvedCount}/${total}</button>`
+              : `<button class="primary-button" type="button" data-action="challenge-next">next puzzle</button>`}
+            <button class="small-button" type="button" data-action="challenge-exit">leave</button>
+          </div>`;
+      } else {
+        body = state.challengeStatus === "wrong"
+          ? state.challengeMessage
+          : "Find the checkmate in one move. Tap your piece, then tap the square it should land on.";
+        actions = `
+          <div class="action-row">
+            <button class="small-button" type="button" data-action="challenge-show">show me the move</button>
+            <button class="small-button" type="button" data-action="challenge-exit">leave</button>
+          </div>`;
+      }
+
+      stage.innerHTML = `
+        <section class="micro-card" data-coach-card="true">
+          <div>
+            <p class="eyebrow">checkmate challenge · ${idx + 1} of ${total}</p>
+            <h2 class="micro-title">${escapeHTML(puzzle.label)}</h2>
+            <p class="micro-body" role="status">${escapeHTML(body)}</p>
+          </div>
+          ${actions}
+        </section>
+        ${renderBoard({ positionItems: displayPosition, selected, highlights, legal: [], lastMove: [] })}
+      `;
     }
 
     function aboutBodyHTML() {
@@ -5518,7 +5770,7 @@
           ? "your move"
           : "bot move";
       const body = play.coachMessage || play.message || play.status || "Tap a soft pink piece, then tap where you want it to go.";
-      const mateAvailable = play.mateMove && !play.result && play.turn === "soft" && !play.busy;
+      const mateAvailable = play.mateMove && !play.result && play.turn === "soft" && !play.busy && !state.mateHelperOff;
       const guiding = mateAvailable && play.mateGuide;
       const mateCallout = mateAvailable
         ? `<button class="mate-callout ${guiding ? "is-on" : ""}" type="button" data-action="play-mate" aria-pressed="${guiding}">
@@ -5569,7 +5821,8 @@
       }
 
       const play = ensurePlayState();
-      const mateMove = ensureMateInfo(play);
+      if (state.mateHelperOff) play.mateGuide = false;
+      const mateMove = state.mateHelperOff ? null : ensureMateInfo(play);
       const guiding = Boolean(play.mateGuide && mateMove && play.turn === "soft" && !play.busy && !play.result);
       if (guiding) {
         const guidePiece = pieceAtSquare(play.position, mateMove.from);
@@ -5662,7 +5915,10 @@
       state.play.message = move.castle
         ? "You castled. The king slid toward the rook, and the rook tucked beside him."
         : `You moved ${describeMove({ ...move, piece: promotionChoice === "queen" && move.piece === "pawn" && Number(move.to[1]) === 8 ? "queen" : move.piece })}.`;
-      if (state.play.result === "soft") recordSoftWin();
+      if (state.play.result === "soft") {
+        recordSoftWin();
+        state.play.coachMessage = explainCheckmate(state.play.position);
+      }
       render();
       queueBotMove();
     }
@@ -5845,11 +6101,72 @@
       render();
     }
 
+    function handleChallengeSquare(square) {
+      clearPracticeFlash();
+      if (state.challengeStatus === "solved" || state.challengeStatus === "revealed") return;
+      const puzzle = CHECKMATE_CHALLENGE[state.challengeIndex] || CHECKMATE_CHALLENGE[0];
+      const position = clonePosition(puzzle.position);
+      const tapped = pieceAtSquare(position, square);
+      if (!state.challengeSelected) {
+        if (!tapped || tapped.side !== "soft") {
+          flashFeedback("No, not that one.", "Tap one of your soft pink pieces first.");
+          return;
+        }
+        if (!legalGameMovesForSquare(practicePlay(position, "soft"), square).length) {
+          state.challengeStatus = "wrong";
+          state.challengeMessage = "That piece has no legal move here. Pick another soft pink piece.";
+          render();
+          return;
+        }
+        state.challengeSelected = square;
+        state.challengeStatus = null;
+        state.challengeMessage = "";
+        render();
+        return;
+      }
+      if (square === state.challengeSelected) {
+        render();
+        return;
+      }
+      if (tapped && tapped.side === "soft") {
+        state.challengeSelected = square;
+        render();
+        return;
+      }
+      const move = findPracticeMove(position, state.challengeSelected, square);
+      if (!move) {
+        state.challengeStatus = "wrong";
+        state.challengeMessage = "That is not a legal move for that piece. Pick your piece, then a square it can reach.";
+        state.challengeSelected = null;
+        render();
+        return;
+      }
+      const play = practicePlay(position, "soft");
+      if (isMatingMove(play, move)) {
+        const after = applyGameMoveSnapshot(play, moveForEngine(position, move), "queen", false);
+        state.challengeSolved = { ...(state.challengeSolved || {}), [puzzle.id]: true };
+        state.challengeStatus = "solved";
+        state.challengeShownMove = { from: move.from, to: move.to };
+        state.challengeMessage = `Yes! ${explainCheckmate(after.position)}`;
+        state.challengeSelected = null;
+        render();
+        return;
+      }
+      state.challengeStatus = "wrong";
+      state.challengeMessage = explainWrongAnswer(position, move);
+      state.challengeSelected = null;
+      render();
+    }
+
     function handlePracticeSquare(square) {
       clearPracticeFlash();
       if (!allLessonsPassed()) {
         state.feedback = "Practice opens after the lessons.";
         render();
+        return;
+      }
+      if (state.practiceMode === "challenge") {
+        handleChallengeSquare(square);
         return;
       }
       if (state.practiceMode === "menu") {
@@ -6179,6 +6496,61 @@
       }
       if (action === "practice-next") {
         goNextPracticeLesson();
+      }
+      if (action === "start-challenge") {
+        clearPracticeAdvance();
+        clearPracticeFlash();
+        state.practiceMode = "challenge";
+        state.challengeIndex = 0;
+        state.challengeSelected = null;
+        state.challengeStatus = null;
+        state.challengeMessage = "";
+        state.challengeShownMove = null;
+        state.feedback = "";
+        render();
+        scrollStageIntoView();
+      }
+      if (action === "challenge-show") {
+        const puzzle = CHECKMATE_CHALLENGE[state.challengeIndex];
+        const position = clonePosition(puzzle.position);
+        const move = findMateInOne(position);
+        if (move) {
+          const after = applyGameMoveSnapshot(practicePlay(position, "soft"), moveForEngine(position, move), "queen", false);
+          state.challengeShownMove = { from: move.from, to: move.to };
+          state.challengeStatus = "revealed";
+          state.challengeMessage = `The move is your ${movePieceName(position, move)} to ${move.to}. ${explainCheckmate(after.position)}`;
+          state.challengeSelected = null;
+        }
+        render();
+      }
+      if (action === "challenge-next") {
+        state.challengeIndex = Math.min(state.challengeIndex + 1, CHECKMATE_CHALLENGE.length - 1);
+        state.challengeSelected = null;
+        state.challengeStatus = null;
+        state.challengeMessage = "";
+        state.challengeShownMove = null;
+        render();
+        scrollStageIntoView();
+      }
+      if (action === "challenge-finish") {
+        const solved = CHECKMATE_CHALLENGE.filter(pz => state.challengeSolved && state.challengeSolved[pz.id]).length;
+        state.challengeSelected = null;
+        state.challengeStatus = null;
+        state.challengeMessage = "";
+        state.challengeShownMove = null;
+        openPracticeMenu(`Checkmate challenge done. You solved ${solved} of ${CHECKMATE_CHALLENGE.length}.`);
+      }
+      if (action === "challenge-exit") {
+        state.challengeSelected = null;
+        state.challengeStatus = null;
+        state.challengeMessage = "";
+        state.challengeShownMove = null;
+        openPracticeMenu("");
+      }
+      if (action === "toggle-mate-helper") {
+        state.mateHelperOff = !state.mateHelperOff;
+        if (state.mateHelperOff && state.play) state.play.mateGuide = false;
+        render();
       }
       if (action === "toggle-practice-clean") {
         state.practiceClean = !state.practiceClean;
