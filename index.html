@@ -1370,7 +1370,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "Girl Chess v4.12";
+    const APP_VERSION = "Girl Chess v4.13";
     const STORAGE_KEY = "girl-chess-progress-v1";
     // Move Options preference persists across new games (and reloads) until turned off.
     var moveOptionsPref = false;
@@ -3894,20 +3894,74 @@
 
     const PRACTICE = MATING_DRILLS;
 
-    // Checkmate Challenge: 10 preloaded positions where checkmate is available in ONE move.
-    // Every position is legal (neither king already in check) and has at least one mate-in-1.
-    // The lineup leans on far pieces controlling a whole row/column, since that is the hard part.
+    // Checkmate Challenge: 30 mixed items. "lesson" items are little animations that show WHY a
+    // pattern works (auto-play through frames with captions). "puzzle" items give a legal position
+    // with a checkmate available in ONE move — find it. Every puzzle is verified legal (neither king
+    // already in check) with at least one mate-in-1; the patterns are deliberately varied so the
+    // answer isn't always "far rook down an open row".
     const CHECKMATE_CHALLENGE = [
-      { id: "cc-far-rook-g8", label: "the long rook", position: [p("g8", "king", "dark"), p("f7", "pawn", "dark"), p("g7", "pawn", "dark"), p("h7", "pawn", "dark"), p("g1", "king", "soft"), p("a1", "rook", "soft")] },
-      { id: "cc-far-rook-f8", label: "rook down the row", position: [p("f8", "king", "dark"), p("e7", "pawn", "dark"), p("f7", "pawn", "dark"), p("g7", "pawn", "dark"), p("g1", "king", "soft"), p("a1", "rook", "soft")] },
-      { id: "cc-far-queen-b8", label: "the far queen", position: [p("b8", "king", "dark"), p("a7", "pawn", "dark"), p("b7", "pawn", "dark"), p("c7", "pawn", "dark"), p("e1", "king", "soft"), p("h1", "queen", "soft")] },
-      { id: "cc-far-queen-h8", label: "queen across the board", position: [p("h8", "king", "dark"), p("f7", "pawn", "dark"), p("g7", "pawn", "dark"), p("h7", "pawn", "dark"), p("e1", "king", "soft"), p("a1", "queen", "soft")] },
-      { id: "cc-kr-corner", label: "king and rook: corner", position: [p("a8", "king", "dark"), p("a6", "king", "soft"), p("h1", "rook", "soft")] },
-      { id: "cc-kr-edge", label: "king and rook: edge", position: [p("e8", "king", "dark"), p("e6", "king", "soft"), p("h1", "rook", "soft")] },
-      { id: "cc-two-rooks", label: "two rooks, one far", position: [p("e8", "king", "dark"), p("a7", "rook", "soft"), p("h1", "rook", "soft"), p("g1", "king", "soft")] },
-      { id: "cc-kq-corner-h", label: "king and queen: box it", position: [p("h8", "king", "dark"), p("h7", "pawn", "dark"), p("f7", "king", "soft"), p("c1", "queen", "soft")] },
-      { id: "cc-kq-corner-a", label: "king and queen: other side", position: [p("a8", "king", "dark"), p("b6", "king", "soft"), p("h2", "queen", "soft")] },
-      { id: "cc-smothered", label: "the trapped king", position: [p("h8", "king", "dark"), p("g8", "rook", "dark"), p("g7", "pawn", "dark"), p("h7", "pawn", "dark"), p("a1", "king", "soft"), p("d6", "knight", "soft")] }
+      { type: "lesson", id: "cc-l-edge", label: "why the edge matters", steps: [
+        { position: [p("e4", "king", "dark"), p("e6", "king", "soft"), p("h1", "rook", "soft")], caption: "A king in the middle of the board has room in every direction. It is hard to trap out here." },
+        { position: [p("e7", "king", "dark"), p("e5", "king", "soft"), p("h1", "rook", "soft")], caption: "So push it back toward an edge. On the edge it has fewer squares — fewer ways to escape." },
+        { position: [p("e8", "king", "dark"), p("e6", "king", "soft"), p("h8", "rook", "soft")], caption: "On the back row your king guards e7, d7 and f7. The rook slides all the way to h8 and covers the whole row. Checkmate." }
+      ] },
+      { type: "puzzle", id: "cc-kr-edge", label: "king and rook: edge", position: [p("e8", "king", "dark"), p("e6", "king", "soft"), p("h1", "rook", "soft")] },
+      { type: "puzzle", id: "cc-kr-corner", label: "king and rook: opposition", position: [p("a8", "king", "dark"), p("a6", "king", "soft"), p("h1", "rook", "soft")] },
+      { type: "lesson", id: "cc-l-corner", label: "why the corner is easiest", steps: [
+        { position: [p("a8", "king", "dark"), p("c6", "king", "soft"), p("b1", "queen", "soft")], caption: "In the corner the king has only three squares to run to: a7, b7 and b8." },
+        { position: [p("a8", "king", "dark"), p("c6", "king", "soft"), p("b1", "queen", "soft")], caption: "Your king already guards a7 and b7. That leaves just one square: b8." },
+        { position: [p("a8", "king", "dark"), p("c6", "king", "soft"), p("b7", "queen", "soft")], caption: "Queen to b7 — protected by your king so it can't be taken — covers b8 and gives check. Nowhere to run. Checkmate." }
+      ] },
+      { type: "puzzle", id: "cc-qb7", label: "the corner kiss", position: [p("a8", "king", "dark"), p("c6", "king", "soft"), p("b1", "queen", "soft")] },
+      { type: "puzzle", id: "cc-kq-corner-a", label: "queen and king: corner", position: [p("a8", "king", "dark"), p("b6", "king", "soft"), p("h2", "queen", "soft")] },
+      { type: "lesson", id: "cc-l-king", label: "bring your king", steps: [
+        { position: [p("e5", "king", "dark"), p("h1", "queen", "soft"), p("a1", "king", "soft")], caption: "A lone queen can check the king, but it just runs away. You can't finish the job alone." },
+        { position: [p("e5", "king", "dark"), p("h1", "queen", "soft"), p("e3", "king", "soft")], caption: "Walk your own king up to face the enemy king, two squares apart. Now its box is tiny." },
+        { position: [p("e8", "king", "dark"), p("e6", "king", "soft"), p("a8", "queen", "soft")], caption: "Drive it to the edge, let your king guard the escape squares, and the queen delivers. Checkmate." }
+      ] },
+      { type: "puzzle", id: "cc-kr-g6", label: "king and rook: the box", position: [p("h8", "king", "dark"), p("g6", "king", "soft"), p("a1", "rook", "soft")] },
+      { type: "puzzle", id: "cc-far-queen-b8", label: "the long queen", position: [p("b8", "king", "dark"), p("a7", "pawn", "dark"), p("b7", "pawn", "dark"), p("c7", "pawn", "dark"), p("e1", "king", "soft"), p("h1", "queen", "soft")] },
+      { type: "lesson", id: "cc-l-backrank", label: "the back-rank trap", steps: [
+        { position: [p("g8", "king", "dark"), p("f7", "pawn", "dark"), p("g7", "pawn", "dark"), p("h7", "pawn", "dark"), p("a1", "rook", "soft")], caption: "This king looks cozy behind its own three pawns." },
+        { position: [p("g8", "king", "dark"), p("f7", "pawn", "dark"), p("g7", "pawn", "dark"), p("h7", "pawn", "dark"), p("a1", "rook", "soft")], caption: "But those pawns block its OWN escape. It can't step forward at all." },
+        { position: [p("g8", "king", "dark"), p("f7", "pawn", "dark"), p("g7", "pawn", "dark"), p("h7", "pawn", "dark"), p("a8", "rook", "soft")], caption: "A rook reaches the back row and checks. Trapped by its own pawns, the king has nowhere to go. Checkmate." }
+      ] },
+      { type: "puzzle", id: "cc-backrank-d8", label: "rook slides in", position: [p("g8", "king", "dark"), p("f7", "pawn", "dark"), p("g7", "pawn", "dark"), p("h7", "pawn", "dark"), p("d1", "rook", "soft"), p("a1", "king", "soft")] },
+      { type: "puzzle", id: "cc-queen-e8", label: "queen down the row", position: [p("g8", "king", "dark"), p("f7", "pawn", "dark"), p("g7", "pawn", "dark"), p("h7", "pawn", "dark"), p("e1", "queen", "soft"), p("a1", "king", "soft")] },
+      { type: "lesson", id: "cc-l-farline", label: "a far piece owns the whole line", steps: [
+        { position: [p("g8", "king", "dark"), p("f7", "pawn", "dark"), p("g7", "pawn", "dark"), p("h7", "pawn", "dark"), p("a1", "rook", "soft")], caption: "Your rook is way over on a1. It looks too far away to do anything to the king on g8." },
+        { position: [p("g8", "king", "dark"), p("f7", "pawn", "dark"), p("g7", "pawn", "dark"), p("h7", "pawn", "dark"), p("a8", "rook", "soft")], caption: "But slide it to a8 and it attacks straight across the whole 8th row — every square from a8 all the way to the king." },
+        { position: [p("g8", "king", "dark"), p("f7", "pawn", "dark"), p("g7", "pawn", "dark"), p("h7", "pawn", "dark"), p("a8", "rook", "soft")], caption: "The king can't step into its own pawns, and every back-row square is covered. Distance doesn't matter — the rook owns the entire line. Checkmate." }
+      ] },
+      { type: "puzzle", id: "cc-far-rook", label: "the far rook", position: [p("g8", "king", "dark"), p("f7", "pawn", "dark"), p("g7", "pawn", "dark"), p("h7", "pawn", "dark"), p("g1", "king", "soft"), p("a1", "rook", "soft")] },
+      { type: "puzzle", id: "cc-qc8", label: "queen boxes the corner", position: [p("h8", "king", "dark"), p("h7", "pawn", "dark"), p("f7", "king", "soft"), p("c1", "queen", "soft")] },
+      { type: "lesson", id: "cc-l-guard", label: "guard your attacker", steps: [
+        { position: [p("h8", "king", "dark"), p("f6", "king", "soft"), p("g1", "queen", "soft")], caption: "You want the queen right next to the enemy king. But if it lands there unprotected, the king just captures it." },
+        { position: [p("h8", "king", "dark"), p("f6", "king", "soft"), p("g1", "queen", "soft")], caption: "First make sure your own king guards the landing square. Your king on f6 already covers g7." },
+        { position: [p("h8", "king", "dark"), p("f6", "king", "soft"), p("g7", "queen", "soft")], caption: "Now queen to g7 is safe — the king can't take it — and it seals every escape. Checkmate." }
+      ] },
+      { type: "puzzle", id: "cc-qg7", label: "the diagonal kiss", position: [p("h8", "king", "dark"), p("f6", "king", "soft"), p("g1", "queen", "soft")] },
+      { type: "puzzle", id: "cc-rook-g8", label: "the guarded rook", position: [p("h8", "king", "dark"), p("h7", "pawn", "dark"), p("f7", "king", "soft"), p("g1", "rook", "soft")] },
+      { type: "lesson", id: "cc-l-ladder", label: "the two-rook ladder", steps: [
+        { position: [p("e6", "king", "dark"), p("a5", "rook", "soft"), p("b1", "rook", "soft")], caption: "Two rooks can mate all by themselves — no king needed. One rook walls off a whole row." },
+        { position: [p("e7", "king", "dark"), p("a6", "rook", "soft"), p("b1", "rook", "soft")], caption: "The other rook checks, the king backs up a row, and the first rook jumps ahead of it. A ladder." },
+        { position: [p("e8", "king", "dark"), p("a7", "rook", "soft"), p("h8", "rook", "soft")], caption: "Rung by rung you push the king to the edge. Then the second rook delivers on the last row. Checkmate." }
+      ] },
+      { type: "puzzle", id: "cc-two-rook-cut", label: "two rooks, one cuts", position: [p("d8", "king", "dark"), p("h7", "rook", "soft"), p("a1", "rook", "soft"), p("g1", "king", "soft")] },
+      { type: "puzzle", id: "cc-two-rook-ladder", label: "two rooks: the finish", position: [p("d8", "king", "dark"), p("a7", "rook", "soft"), p("h1", "rook", "soft"), p("g1", "king", "soft")] },
+      { type: "lesson", id: "cc-l-smother", label: "trapped by its own friends", steps: [
+        { position: [p("h8", "king", "dark"), p("g8", "rook", "dark"), p("g7", "pawn", "dark"), p("h7", "pawn", "dark"), p("a1", "king", "soft"), p("d6", "knight", "soft")], caption: "This king is walled in by its own rook and pawns. It cannot move to a single square." },
+        { position: [p("h8", "king", "dark"), p("g8", "rook", "dark"), p("g7", "pawn", "dark"), p("h7", "pawn", "dark"), p("a1", "king", "soft"), p("d6", "knight", "soft")], caption: "That is a weakness: a knight can hop in, and a knight's check can never be blocked." },
+        { position: [p("h8", "king", "dark"), p("g8", "rook", "dark"), p("g7", "pawn", "dark"), p("h7", "pawn", "dark"), p("a1", "king", "soft"), p("f7", "knight", "soft")], caption: "Knight to f7 checks the king. It can't move, can't capture, can't block. Checkmate — this one is called 'smothered'." }
+      ] },
+      { type: "puzzle", id: "cc-smothered", label: "the smothered king", position: [p("h8", "king", "dark"), p("g8", "rook", "dark"), p("g7", "pawn", "dark"), p("h7", "pawn", "dark"), p("a1", "king", "soft"), p("d6", "knight", "soft")] },
+      { type: "puzzle", id: "cc-arabian", label: "knight and rook (arabian)", position: [p("h8", "king", "dark"), p("f6", "knight", "soft"), p("a7", "rook", "soft"), p("a1", "king", "soft")] },
+      { type: "puzzle", id: "cc-anastasia", label: "knight and rook (anastasia)", position: [p("h7", "king", "dark"), p("g7", "pawn", "dark"), p("e7", "knight", "soft"), p("a1", "rook", "soft"), p("a3", "king", "soft")] },
+      { type: "puzzle", id: "cc-two-bishops", label: "two bishops cross", position: [p("h8", "king", "dark"), p("f7", "king", "soft"), p("e3", "bishop", "soft"), p("e4", "bishop", "soft")] },
+      { type: "puzzle", id: "cc-greco", label: "bishop and rook (greco)", position: [p("h8", "king", "dark"), p("g7", "pawn", "dark"), p("f2", "king", "soft"), p("c4", "bishop", "soft"), p("a1", "rook", "soft")] },
+      { type: "puzzle", id: "cc-qg8", label: "queen on the back row", position: [p("h8", "king", "dark"), p("f7", "king", "soft"), p("g1", "queen", "soft")] },
+      { type: "puzzle", id: "cc-queen-b8", label: "queen to the back", position: [p("h8", "king", "dark"), p("g6", "king", "soft"), p("b1", "queen", "soft")] },
+      { type: "puzzle", id: "cc-far-diag-queen", label: "the far diagonal queen", position: [p("a8", "king", "dark"), p("b6", "king", "soft"), p("h3", "queen", "soft")] }
     ];
 
     const DEMOS = {
@@ -4156,6 +4210,7 @@
       aboutOpen: false,
       mateHelperOff: false,
       challengeIndex: 0,
+      challengeStep: 0,
       challengeSelected: null,
       challengeStatus: null,
       challengeMessage: "",
@@ -4169,6 +4224,7 @@
     let feedbackTimer = null;
     let botTimer = null;
     let practiceAdvanceTimer = null;
+    let challengeAnimTimer = null;
     const app = document.getElementById("app");
     const layout = document.getElementById("layout");
     let stage = null;
@@ -4198,6 +4254,7 @@
         next.practiceHintLevel = 0;
         next.mateHelperOff = Boolean(next.mateHelperOff);
         next.challengeIndex = Number.isInteger(next.challengeIndex) && next.challengeIndex >= 0 && next.challengeIndex < CHECKMATE_CHALLENGE.length ? next.challengeIndex : 0;
+        next.challengeStep = 0;
         next.challengeSelected = null;
         next.challengeStatus = null;
         next.challengeMessage = "";
@@ -4258,6 +4315,7 @@
         resetConfirm,
         aboutOpenPanel,
         aboutOpen,
+        challengeStep,
         challengeSelected,
         challengeStatus,
         challengeMessage,
@@ -4329,8 +4387,50 @@
       state.practiceHintLevel = 0;
     }
 
+    function clearChallengeAnimation() {
+      if (challengeAnimTimer) {
+        window.clearTimeout(challengeAnimTimer);
+        challengeAnimTimer = null;
+      }
+    }
+
+    // Auto-play the frames of a "lesson" item (the little gif-style walkthroughs).
+    function scheduleChallengeFrame() {
+      clearChallengeAnimation();
+      const item = CHECKMATE_CHALLENGE[state.challengeIndex];
+      if (!item || item.type !== "lesson") return;
+      if (state.challengeStep >= item.steps.length - 1) {
+        state.challengeSolved = { ...(state.challengeSolved || {}), [item.id]: true };
+        return;
+      }
+      challengeAnimTimer = window.setTimeout(() => {
+        challengeAnimTimer = null;
+        if (state.view !== "practice" || state.practiceMode !== "challenge") return;
+        const current = CHECKMATE_CHALLENGE[state.challengeIndex];
+        if (!current || current.type !== "lesson") return;
+        state.challengeStep = Math.min(state.challengeStep + 1, current.steps.length - 1);
+        render();
+        scheduleChallengeFrame();
+      }, 1900);
+    }
+
+    // Enter the current challenge item fresh (reset per-item state; start the animation if it's a lesson).
+    function startChallengeItem() {
+      clearChallengeAnimation();
+      state.challengeStep = 0;
+      state.challengeSelected = null;
+      state.challengeStatus = null;
+      state.challengeMessage = "";
+      state.challengeShownMove = null;
+      render();
+      scrollStageIntoView();
+      const item = CHECKMATE_CHALLENGE[state.challengeIndex];
+      if (item && item.type === "lesson") scheduleChallengeFrame();
+    }
+
     function clearAllTransient() {
       clearPracticeAdvance();
+      clearChallengeAnimation();
       state.foundByStep = {};
       state.answerShownByStep = {};
       state.revealedByStep = {};
@@ -5630,9 +5730,9 @@
                 <span class="drill-number">★</span>
                 <div>
                   <h2 class="drill-title">checkmate challenge</h2>
-                  <p class="drill-body">${CHECKMATE_CHALLENGE.length} puzzles. Each one has checkmate in a single move — spot it. Get it wrong and it explains why.</p>
+                  <p class="drill-body">${CHECKMATE_CHALLENGE.length} steps. Short animated lessons show WHY each checkmate works, then puzzles let you find your own. Wrong answers explain why.</p>
                 </div>
-                <span class="drill-status">${challengeDone ? `${challengeDone}/${CHECKMATE_CHALLENGE.length}` : "test"}</span>
+                <span class="drill-status">${challengeDone ? `${challengeDone}/${CHECKMATE_CHALLENGE.length}` : "start"}</span>
               </div>
               <button class="primary-button" type="button" data-action="start-challenge">start challenge</button>
             </article>
@@ -5657,14 +5757,44 @@
     function renderChallengeView() {
       const total = CHECKMATE_CHALLENGE.length;
       const idx = Math.min(Math.max(state.challengeIndex, 0), total - 1);
-      const puzzle = CHECKMATE_CHALLENGE[idx];
-      const basePosition = clonePosition(puzzle.position);
+      const item = CHECKMATE_CHALLENGE[idx];
+      const doneCount = CHECKMATE_CHALLENGE.filter(it => state.challengeSolved && state.challengeSolved[it.id]).length;
+      const isLast = idx >= total - 1;
+      const nextButton = isLast
+        ? `<button class="primary-button" type="button" data-action="challenge-finish">finish · ${doneCount}/${total}</button>`
+        : `<button class="primary-button" type="button" data-action="challenge-next">${item.type === "lesson" ? "next" : "next puzzle"}</button>`;
+
+      if (item.type === "lesson") {
+        const stepCount = item.steps.length;
+        const step = item.steps[Math.min(Math.max(state.challengeStep, 0), stepCount - 1)];
+        const atEnd = state.challengeStep >= stepCount - 1;
+        const actions = `
+          <div class="action-row">
+            ${nextButton}
+            ${atEnd
+              ? `<button class="small-button" type="button" data-action="challenge-replay">replay</button>`
+              : `<button class="small-button" type="button" data-action="challenge-exit">leave</button>`}
+          </div>`;
+        stage.innerHTML = `
+          <section class="micro-card" data-coach-card="true">
+            <div>
+              <p class="eyebrow">lesson · ${idx + 1} of ${total}</p>
+              <h2 class="micro-title">${escapeHTML(item.label)}</h2>
+              <p class="micro-body" role="status">${escapeHTML(step.caption)}</p>
+            </div>
+            ${actions}
+          </section>
+          ${renderBoard({ positionItems: clonePosition(step.position), selected: new Set(), highlights: new Set(), legal: [], lastMove: [] })}
+        `;
+        return;
+      }
+
+      // puzzle item
+      const basePosition = clonePosition(item.position);
       const shown = state.challengeShownMove;
       const displayPosition = shown ? applyPracticeMove(basePosition, shown, false).position : basePosition;
       const selected = (!shown && state.challengeSelected) ? new Set([state.challengeSelected]) : new Set();
       const highlights = shown ? new Set([shown.from, shown.to]) : new Set();
-      const solvedCount = CHECKMATE_CHALLENGE.filter(pz => state.challengeSolved && state.challengeSolved[pz.id]).length;
-      const isLast = idx >= total - 1;
       const finished = state.challengeStatus === "solved" || state.challengeStatus === "revealed";
 
       let body;
@@ -5673,9 +5803,7 @@
         body = state.challengeMessage;
         actions = `
           <div class="action-row">
-            ${isLast
-              ? `<button class="primary-button" type="button" data-action="challenge-finish">finish · ${solvedCount}/${total}</button>`
-              : `<button class="primary-button" type="button" data-action="challenge-next">next puzzle</button>`}
+            ${nextButton}
             <button class="small-button" type="button" data-action="challenge-exit">leave</button>
           </div>`;
       } else {
@@ -5692,8 +5820,8 @@
       stage.innerHTML = `
         <section class="micro-card" data-coach-card="true">
           <div>
-            <p class="eyebrow">checkmate challenge · ${idx + 1} of ${total}</p>
-            <h2 class="micro-title">${escapeHTML(puzzle.label)}</h2>
+            <p class="eyebrow">puzzle · ${idx + 1} of ${total}</p>
+            <h2 class="micro-title">${escapeHTML(item.label)}</h2>
             <p class="micro-body" role="status">${escapeHTML(body)}</p>
           </div>
           ${actions}
@@ -6041,6 +6169,7 @@
 
     function openPracticeMenu(feedback = "") {
       clearPracticeAdvance();
+      clearChallengeAnimation();
       clearPracticeFlash();
       clearPracticeItem(state.practiceIndex);
       state.practiceMode = "menu";
@@ -6103,8 +6232,9 @@
 
     function handleChallengeSquare(square) {
       clearPracticeFlash();
-      if (state.challengeStatus === "solved" || state.challengeStatus === "revealed") return;
       const puzzle = CHECKMATE_CHALLENGE[state.challengeIndex] || CHECKMATE_CHALLENGE[0];
+      if (puzzle.type === "lesson") return; // lessons play automatically; the board is just to watch
+      if (state.challengeStatus === "solved" || state.challengeStatus === "revealed") return;
       const position = clonePosition(puzzle.position);
       const tapped = pieceAtSquare(position, square);
       if (!state.challengeSelected) {
@@ -6502,49 +6632,40 @@
         clearPracticeFlash();
         state.practiceMode = "challenge";
         state.challengeIndex = 0;
-        state.challengeSelected = null;
-        state.challengeStatus = null;
-        state.challengeMessage = "";
-        state.challengeShownMove = null;
         state.feedback = "";
-        render();
-        scrollStageIntoView();
+        startChallengeItem();
       }
       if (action === "challenge-show") {
         const puzzle = CHECKMATE_CHALLENGE[state.challengeIndex];
-        const position = clonePosition(puzzle.position);
-        const move = findMateInOne(position);
-        if (move) {
-          const after = applyGameMoveSnapshot(practicePlay(position, "soft"), moveForEngine(position, move), "queen", false);
-          state.challengeShownMove = { from: move.from, to: move.to };
-          state.challengeStatus = "revealed";
-          state.challengeMessage = `The move is your ${movePieceName(position, move)} to ${move.to}. ${explainCheckmate(after.position)}`;
-          state.challengeSelected = null;
+        if (puzzle && puzzle.type !== "lesson") {
+          const position = clonePosition(puzzle.position);
+          const move = findMateInOne(position);
+          if (move) {
+            const after = applyGameMoveSnapshot(practicePlay(position, "soft"), moveForEngine(position, move), "queen", false);
+            state.challengeShownMove = { from: move.from, to: move.to };
+            state.challengeStatus = "revealed";
+            state.challengeMessage = `The move is your ${movePieceName(position, move)} to ${move.to}. ${explainCheckmate(after.position)}`;
+            state.challengeSelected = null;
+          }
         }
         render();
       }
       if (action === "challenge-next") {
         state.challengeIndex = Math.min(state.challengeIndex + 1, CHECKMATE_CHALLENGE.length - 1);
-        state.challengeSelected = null;
-        state.challengeStatus = null;
-        state.challengeMessage = "";
-        state.challengeShownMove = null;
+        startChallengeItem();
+      }
+      if (action === "challenge-replay") {
+        state.challengeStep = 0;
         render();
-        scrollStageIntoView();
+        scheduleChallengeFrame();
       }
       if (action === "challenge-finish") {
-        const solved = CHECKMATE_CHALLENGE.filter(pz => state.challengeSolved && state.challengeSolved[pz.id]).length;
-        state.challengeSelected = null;
-        state.challengeStatus = null;
-        state.challengeMessage = "";
-        state.challengeShownMove = null;
-        openPracticeMenu(`Checkmate challenge done. You solved ${solved} of ${CHECKMATE_CHALLENGE.length}.`);
+        const done = CHECKMATE_CHALLENGE.filter(it => state.challengeSolved && state.challengeSolved[it.id]).length;
+        clearChallengeAnimation();
+        openPracticeMenu(`Checkmate challenge done. You finished ${done} of ${CHECKMATE_CHALLENGE.length} steps.`);
       }
       if (action === "challenge-exit") {
-        state.challengeSelected = null;
-        state.challengeStatus = null;
-        state.challengeMessage = "";
-        state.challengeShownMove = null;
+        clearChallengeAnimation();
         openPracticeMenu("");
       }
       if (action === "toggle-mate-helper") {
