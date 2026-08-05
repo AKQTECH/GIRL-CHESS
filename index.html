@@ -1171,24 +1171,43 @@
       text-transform: lowercase;
     }
 
+    .rules-list {
+      display: grid;
+      gap: 8px;
+    }
+
     .rule-card {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
       border: 2px solid var(--line-soft);
       background: var(--white);
-      padding: 12px;
+      padding: 14px 12px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .rule-card:hover {
+      background: var(--pink-1);
+      border-color: var(--line);
     }
 
     .rule-title {
-      margin: 0 0 5px;
+      margin: 0;
       font-family: "Silkscreen", monospace;
       font-size: 12px;
-      line-height: 1.25;
+      line-height: 1.3;
       text-transform: lowercase;
     }
 
-    .rule-body {
-      margin: 0;
-      font-size: 15px;
-      line-height: 1.45;
+    .rule-cue {
+      flex: 0 0 auto;
+      font-family: "Silkscreen", monospace;
+      font-size: 10px;
+      text-transform: lowercase;
+      color: var(--pink-5);
     }
 
     .rules-footer {
@@ -1436,7 +1455,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "Girl Chess v4.14";
+    const APP_VERSION = "Girl Chess v4.15";
     const STORAGE_KEY = "girl-chess-progress-v1";
     // Move Options preference persists across new games (and reloads) until turned off.
     var moveOptionsPref = false;
@@ -4030,40 +4049,105 @@
       { type: "puzzle", id: "cc-far-diag-queen", label: "the far diagonal queen", position: [p("a8", "king", "dark"), p("b6", "king", "soft"), p("h3", "queen", "soft")] }
     ];
 
-    // "The Rules" — everything past how the pieces move that a beginner needs to reach intermediate.
+    // "The Rules" — everything past how the pieces move. Each rule is an animated demo (frames with
+    // captions) so you can watch the idea happen on the board. Soft pink = your side, dark pink = enemy.
     const CHESS_RULES = [
-      { group: "staying safe", rules: [
-        { title: "a guarded piece is safe", body: "If one of your pieces protects another, the enemy can't just win it — you take back with the guard. That's the 'king protects the queen' idea: a queen sitting next to your king can't be captured for free, because your king would recapture." },
-        { title: "don't leave a piece hanging", body: "A piece the enemy attacks that nothing of yours defends can be taken for free. Before every move, ask: is anything of mine attacked and undefended?" },
-        { title: "the two kings can't touch", body: "A king can never move onto a square right next to the other king. They always keep at least one square between them." },
-        { title: "you can't move into check", body: "You can never put your own king in check. And if your king IS in check you must deal with it right away: move the king, block the attack, or capture the attacker." }
+      { id: "r-guarded", group: "staying safe", title: "a guarded piece is safe", steps: [
+        { position: [p("f6", "king", "soft"), p("c3", "queen", "soft"), p("h8", "king", "dark")], caption: "Your king on f6 quietly guards the squares next to it, like g7." },
+        { position: [p("f6", "king", "soft"), p("g7", "queen", "soft"), p("h8", "king", "dark")], caption: "The queen jumps right next to the enemy king. Normally that's crazy — the king would just take it." },
+        { position: [p("f6", "king", "soft"), p("g7", "queen", "soft"), p("h8", "king", "dark")], caption: "But your king guards g7, so the king can't capture it — that would be moving next to your king. Protected, the queen is safe. It's checkmate. THIS is 'the king protects the queen'." }
       ] },
-      { group: "don't throw away a win", rules: [
-        { title: "stalemate is a draw, not a win", body: "If it's your opponent's turn, their king is NOT in check, but they have no legal move at all — the game is a draw. When you're winning, always leave the losing king one safe square until you can actually deliver checkmate." },
-        { title: "the same position three times is a draw", body: "If the exact same position happens three times, either side can claim a draw. Don't just shuffle pieces when you're ahead — make real progress." },
-        { title: "too little material is a draw", body: "You can't checkmate with just a lone king, or a king and a single knight, or a king and a single bishop. King and queen, or king and rook, CAN mate." }
+      { id: "r-hanging", group: "staying safe", title: "don't leave a piece hanging", steps: [
+        { position: [p("g1", "king", "soft"), p("g5", "knight", "soft"), p("g8", "king", "dark"), p("h5", "rook", "dark")], caption: "Your knight on g5 is attacked by the dark rook — and nothing of yours is defending it." },
+        { position: [p("g1", "king", "soft"), p("g8", "king", "dark"), p("g5", "rook", "dark")], caption: "So the rook just takes it, for free." },
+        { position: [p("g1", "king", "soft"), p("g8", "king", "dark"), p("g5", "rook", "dark")], caption: "A piece nothing defends is 'hanging'. Before every move, check: is anything of mine attacked and undefended?" }
       ] },
-      { group: "what the pieces are worth", rules: [
-        { title: "piece values", body: "Pawn = 1, knight = 3, bishop = 3, rook = 5, queen = 9. The king is priceless. Use these numbers to judge whether a trade is good for you." },
-        { title: "trade up, not down", body: "Happily swap a smaller piece for a bigger one (winning a rook for a bishop is great). Avoid giving up a big piece for a small one unless it wins something even bigger." },
-        { title: "the bishop pair", body: "Two bishops working together are a little stronger than two knights when the board is open, because they sweep long diagonals from far away." }
+      { id: "r-kings", group: "staying safe", title: "the two kings can't touch", steps: [
+        { position: [p("e4", "king", "soft"), p("c4", "king", "dark")], caption: "Two kings can never stand right next to each other." },
+        { position: [p("e4", "king", "soft"), p("c4", "king", "dark")], caption: "Your king can't step to d3, d4 or d5 — the dark king covers them. They always keep one square between." }
       ] },
-      { group: "how you win material", rules: [
-        { title: "the fork", body: "One piece attacks two things at the same time, so your opponent can only save one. Knights are famous for forking the king and queen at once." },
-        { title: "the pin", body: "A piece can't move because a more valuable piece — often the king — sits behind it on the same line. A pinned piece is stuck, so you can attack it again and win it." },
-        { title: "the skewer", body: "Like a pin in reverse: the valuable piece is in front and has to move out of check, letting you grab the piece that was hiding behind it." },
-        { title: "the discovered attack", body: "You move one piece and uncover an attack from another piece behind it. That's two threats at once — very hard to answer." }
+      { id: "r-answer-check", group: "staying safe", title: "you must answer a check", steps: [
+        { position: [p("e1", "king", "soft"), p("e8", "rook", "dark")], caption: "The dark rook checks your king straight down the open file." },
+        { position: [p("f1", "king", "soft"), p("e8", "rook", "dark")], caption: "You must deal with it at once — here the king just steps off the file to f1." },
+        { position: [p("f1", "king", "soft"), p("e8", "rook", "dark")], caption: "Answer a check three ways: move the king, block the line, or capture the attacker. You can never ignore it." }
       ] },
-      { group: "moves people forget", rules: [
-        { title: "castling", body: "Once per game the king and a rook move together to tuck the king into safety. You can't castle if the king or that rook has already moved, if pieces are in the way, or if the king is in check, passes through check, or would land on an attacked square." },
-        { title: "en passant", body: "If an enemy pawn moves two squares and lands right beside your pawn, you may capture it as if it had moved only one square — but only on your very next move, or you lose the chance." },
-        { title: "promotion", body: "A pawn that reaches the far end turns into any piece you choose — almost always a queen. You can even end up with two queens." }
+      { id: "r-stalemate", group: "don't throw away a win", title: "stalemate is a draw, not a win", steps: [
+        { position: [p("h8", "king", "dark"), p("g6", "queen", "soft"), p("f7", "king", "soft")], caption: "It's the dark king's turn. It is NOT in check — but g8, g7 and h7 are all covered by your queen." },
+        { position: [p("h8", "king", "dark"), p("g6", "queen", "soft"), p("f7", "king", "soft")], caption: "No legal move AND no check = stalemate. The game is a draw. You just threw the win away!" },
+        { position: [p("h8", "king", "dark"), p("g5", "queen", "soft"), p("f7", "king", "soft")], caption: "The fix: keep the queen a step back so the king still has h7. Leave it one safe square until you can truly checkmate." }
       ] },
-      { group: "how to play well", rules: [
-        { title: "grab the center", body: "The four middle squares are the best spots on the board. Point your pawns and pieces at the center early — pieces there reach much more of the board." },
-        { title: "get your pieces out", body: "In the opening, develop your knights and bishops toward the center. Don't move the same piece twice, and don't bring the queen out too early — it just gets chased around." },
-        { title: "castle early", body: "Tuck your king safely into a corner behind its pawns in the first several moves. A king left in the center usually gets attacked." },
-        { title: "have a reason for every move", body: "Before you move, ask: what does this attack or defend, and is my king still safe afterward? A move with no purpose usually just helps your opponent." }
+      { id: "r-repetition", group: "don't throw away a win", title: "the same position three times is a draw", steps: [
+        { position: [p("g8", "king", "dark"), p("c4", "queen", "soft"), p("g1", "king", "soft")], caption: "You keep checking with no real plan..." },
+        { position: [p("h8", "king", "dark"), p("c3", "queen", "soft"), p("g1", "king", "soft")], caption: "...the king shuffles, you check again..." },
+        { position: [p("g8", "king", "dark"), p("c4", "queen", "soft"), p("g1", "king", "soft")], caption: "...and the same position keeps coming back. If it repeats three times, either side can claim a draw. Make progress instead of shuffling." }
+      ] },
+      { id: "r-insufficient", group: "don't throw away a win", title: "too little material is a draw", steps: [
+        { position: [p("e5", "king", "soft"), p("f5", "bishop", "soft"), p("e7", "king", "dark")], caption: "You have only a king and one bishop against a lone king." },
+        { position: [p("e5", "king", "soft"), p("f5", "bishop", "soft"), p("e7", "king", "dark")], caption: "It is simply impossible to checkmate with this — the game is a draw. Same with a king and a single knight, or two bare kings." }
+      ] },
+      { id: "r-values", group: "what the pieces are worth", title: "what the pieces are worth", steps: [
+        { position: [p("b4", "pawn", "soft"), p("d4", "knight", "soft"), p("e4", "bishop", "soft"), p("g4", "rook", "soft"), p("d6", "queen", "soft")], caption: "Pawn = 1, knight = 3, bishop = 3, rook = 5, queen = 9." },
+        { position: [p("b4", "pawn", "soft"), p("d4", "knight", "soft"), p("e4", "bishop", "soft"), p("g4", "rook", "soft"), p("d6", "queen", "soft")], caption: "Use these numbers to judge trades. The king isn't on the list — it's priceless, and losing it ends the game." }
+      ] },
+      { id: "r-trade-up", group: "what the pieces are worth", title: "trade up, not down", steps: [
+        { position: [p("d1", "rook", "soft"), p("g1", "king", "soft"), p("d8", "bishop", "dark"), p("g8", "king", "dark")], caption: "Your rook attacks the dark bishop straight down the file." },
+        { position: [p("d8", "rook", "soft"), p("g1", "king", "soft"), p("g8", "king", "dark")], caption: "Grab it! You won a bishop (worth 3) with a rook that's safe — a good deal." },
+        { position: [p("d8", "rook", "soft"), p("g1", "king", "soft"), p("g8", "king", "dark")], caption: "Happily swap a smaller piece for a bigger one. Avoid giving a big piece for a small one unless it wins even more." }
+      ] },
+      { id: "r-bishop-pair", group: "what the pieces are worth", title: "the bishop pair", steps: [
+        { position: [p("c4", "bishop", "soft"), p("f4", "bishop", "soft"), p("g1", "king", "soft"), p("e6", "king", "dark")], caption: "Two bishops cover both colors of squares and reach right across the board." },
+        { position: [p("c4", "bishop", "soft"), p("f4", "bishop", "soft"), p("g1", "king", "soft"), p("e6", "king", "dark")], caption: "Working together in an open position, the bishop pair is a little stronger than two knights." }
+      ] },
+      { id: "r-fork", group: "how you win material", title: "the fork", steps: [
+        { position: [p("e4", "knight", "soft"), p("g1", "king", "soft"), p("g8", "king", "dark"), p("d7", "queen", "dark")], caption: "Your knight is eyeing the f6 square." },
+        { position: [p("f6", "knight", "soft"), p("g1", "king", "soft"), p("g8", "king", "dark"), p("d7", "queen", "dark")], caption: "Jump! From f6 the knight attacks the king on g8 AND the queen on d7 at the same time — a fork." },
+        { position: [p("f6", "knight", "soft"), p("g1", "king", "soft"), p("h8", "king", "dark"), p("d7", "queen", "dark")], caption: "The king must escape check first — then you snap up the queen. One piece, two targets." }
+      ] },
+      { id: "r-pin", group: "how you win material", title: "the pin", steps: [
+        { position: [p("g5", "bishop", "soft"), p("g1", "king", "soft"), p("f6", "knight", "dark"), p("e7", "king", "dark")], caption: "Your bishop attacks the knight on f6. Directly behind it, on the same diagonal, sits the dark king." },
+        { position: [p("g5", "bishop", "soft"), p("g1", "king", "soft"), p("f6", "knight", "dark"), p("e7", "king", "dark")], caption: "The knight can't move — that would expose its own king to check. It's pinned, frozen in place." },
+        { position: [p("g5", "bishop", "soft"), p("g1", "king", "soft"), p("f6", "knight", "dark"), p("e7", "king", "dark")], caption: "A pinned piece is helpless. Pile another attacker on it and win it." }
+      ] },
+      { id: "r-skewer", group: "how you win material", title: "the skewer", steps: [
+        { position: [p("b2", "bishop", "soft"), p("g1", "king", "soft"), p("d4", "king", "dark"), p("f6", "queen", "dark")], caption: "Your bishop checks the king along the diagonal. Further down the SAME line sits the queen, behind the king." },
+        { position: [p("b2", "bishop", "soft"), p("g1", "king", "soft"), p("c5", "king", "dark"), p("f6", "queen", "dark")], caption: "The king has to step off the line to escape check..." },
+        { position: [p("f6", "bishop", "soft"), p("g1", "king", "soft"), p("c5", "king", "dark")], caption: "...and your bishop grabs the queen that was hiding behind it. A skewer — a pin in reverse." }
+      ] },
+      { id: "r-discovered", group: "how you win material", title: "the discovered attack", steps: [
+        { position: [p("d1", "rook", "soft"), p("d3", "bishop", "soft"), p("g1", "king", "soft"), p("d8", "king", "dark")], caption: "Your rook sits behind your own bishop, both on the d-file, aimed at the enemy king." },
+        { position: [p("d1", "rook", "soft"), p("h7", "bishop", "soft"), p("g1", "king", "soft"), p("d8", "king", "dark")], caption: "Move the bishop away — and it uncovers the rook's check on the king, while the bishop itself flies off to attack too." },
+        { position: [p("d1", "rook", "soft"), p("h7", "bishop", "soft"), p("g1", "king", "soft"), p("d8", "king", "dark")], caption: "A discovered attack: move one piece, and the piece behind it strikes. Two threats in a single move." }
+      ] },
+      { id: "r-castling", group: "moves people forget", title: "castling", steps: [
+        { position: [p("e1", "king", "soft"), p("h1", "rook", "soft"), p("e8", "king", "dark")], caption: "Your king and this rook haven't moved, and the squares between them are empty." },
+        { position: [p("g1", "king", "soft"), p("f1", "rook", "soft"), p("e8", "king", "dark")], caption: "Castle! In one move the king slides two squares to the corner and the rook hops to the other side." },
+        { position: [p("g1", "king", "soft"), p("f1", "rook", "soft"), p("e8", "king", "dark")], caption: "Once per game. You can't castle if the king or rook has moved, if pieces are in the way, or through/into check." }
+      ] },
+      { id: "r-enpassant", group: "moves people forget", title: "en passant", steps: [
+        { position: [p("e5", "pawn", "soft"), p("e1", "king", "soft"), p("d7", "pawn", "dark"), p("e8", "king", "dark")], caption: "Your pawn is on e5. The dark d-pawn is still back home on d7." },
+        { position: [p("e5", "pawn", "soft"), p("d5", "pawn", "dark"), p("e1", "king", "soft"), p("e8", "king", "dark")], caption: "The dark pawn dashes two squares to d5, sliding right past your pawn." },
+        { position: [p("d6", "pawn", "soft"), p("e1", "king", "soft"), p("e8", "king", "dark")], caption: "You capture it 'en passant' — as if it had moved only one square — landing on d6. Only allowed right away." }
+      ] },
+      { id: "r-promotion", group: "moves people forget", title: "promotion", steps: [
+        { position: [p("g7", "pawn", "soft"), p("e1", "king", "soft"), p("e8", "king", "dark")], caption: "Your little pawn has marched all the way to g7, one step from the far end." },
+        { position: [p("g8", "queen", "soft"), p("e1", "king", "soft"), p("e8", "king", "dark")], caption: "Step to g8 and it transforms into a queen — or any piece you choose." },
+        { position: [p("g8", "queen", "soft"), p("e1", "king", "soft"), p("e8", "king", "dark")], caption: "A promoted pawn becomes a whole new piece. You can even end up with two queens." }
+      ] },
+      { id: "r-center", group: "how to play well", title: "grab the center", steps: [
+        { position: [p("d2", "pawn", "soft"), p("e2", "pawn", "soft"), p("e1", "king", "soft"), p("e8", "king", "dark")], caption: "The four middle squares are the best real estate on the board." },
+        { position: [p("d4", "pawn", "soft"), p("e4", "pawn", "soft"), p("e1", "king", "soft"), p("e8", "king", "dark")], caption: "Push pawns into the center early. From there, your pieces reach far more of the board." }
+      ] },
+      { id: "r-develop", group: "how to play well", title: "get your pieces out", steps: [
+        { position: [p("g1", "knight", "soft"), p("f1", "bishop", "soft"), p("e1", "king", "soft"), p("e8", "king", "dark")], caption: "Your knight and bishop start tucked away on the back row, doing nothing." },
+        { position: [p("f3", "knight", "soft"), p("c4", "bishop", "soft"), p("e1", "king", "soft"), p("e8", "king", "dark")], caption: "Bring them out toward the center in the opening. Don't move the same piece twice, and keep the queen home for now." }
+      ] },
+      { id: "r-castle-early", group: "how to play well", title: "castle early", steps: [
+        { position: [p("e1", "king", "soft"), p("h1", "rook", "soft"), p("e8", "king", "dark")], caption: "Your king starts in the center — an exposed, dangerous spot." },
+        { position: [p("g1", "king", "soft"), p("f1", "rook", "soft"), p("e8", "king", "dark")], caption: "Castle in the first several moves to tuck it safely in the corner, behind its pawns." }
+      ] },
+      { id: "r-purpose", group: "how to play well", title: "have a reason for every move", steps: [
+        { position: [p("f3", "knight", "soft"), p("e1", "king", "soft"), p("e5", "pawn", "dark"), p("e8", "king", "dark")], caption: "Before you move, ask: what does this attack or defend? Here the knight can win the e5 pawn." },
+        { position: [p("e5", "knight", "soft"), p("e1", "king", "soft"), p("e8", "king", "dark")], caption: "And: is my king still safe afterward? A move with a clear purpose beats a random one every time." }
       ] }
     ];
 
@@ -4319,6 +4403,8 @@
       challengeMessage: "",
       challengeShownMove: null,
       challengeSolved: {},
+      ruleIndex: null,
+      ruleStep: 0,
       play: null
     };
 
@@ -4328,6 +4414,7 @@
     let botTimer = null;
     let practiceAdvanceTimer = null;
     let challengeAnimTimer = null;
+    let ruleAnimTimer = null;
     const app = document.getElementById("app");
     const layout = document.getElementById("layout");
     let stage = null;
@@ -4363,6 +4450,8 @@
         next.challengeMessage = "";
         next.challengeShownMove = null;
         next.challengeSolved = next.challengeSolved || {};
+        next.ruleIndex = null;
+        next.ruleStep = 0;
         next.completedDrills = next.completedDrills || {};
         next.difficulty = DIFFICULTIES.includes(next.difficulty) ? next.difficulty : "easy";
         next.playMode = PLAY_MODES.includes(next.playMode) ? next.playMode : "real";
@@ -4423,6 +4512,8 @@
         challengeStatus,
         challengeMessage,
         challengeShownMove,
+        ruleIndex,
+        ruleStep,
         ...persisted
       } = state;
       if (persisted.play) {
@@ -4517,6 +4608,39 @@
       }, 1900);
     }
 
+    function clearRuleAnimation() {
+      if (ruleAnimTimer) {
+        window.clearTimeout(ruleAnimTimer);
+        ruleAnimTimer = null;
+      }
+    }
+
+    // Auto-play the frames of a rule demo (the "gif" for each rule).
+    function scheduleRuleFrame() {
+      clearRuleAnimation();
+      const rule = CHESS_RULES[state.ruleIndex];
+      if (!rule || !rule.steps) return;
+      if (state.ruleStep >= rule.steps.length - 1) return;
+      ruleAnimTimer = window.setTimeout(() => {
+        ruleAnimTimer = null;
+        if (state.view !== "practice" || state.practiceMode !== "rules" || state.ruleIndex == null) return;
+        const current = CHESS_RULES[state.ruleIndex];
+        if (!current || !current.steps) return;
+        state.ruleStep = Math.min(state.ruleStep + 1, current.steps.length - 1);
+        render();
+        scheduleRuleFrame();
+      }, 2000);
+    }
+
+    function startRuleDemo(index) {
+      clearRuleAnimation();
+      state.ruleIndex = Math.min(Math.max(index, 0), CHESS_RULES.length - 1);
+      state.ruleStep = 0;
+      render();
+      scrollStageIntoView();
+      scheduleRuleFrame();
+    }
+
     // Enter the current challenge item fresh (reset per-item state; start the animation if it's a lesson).
     function startChallengeItem() {
       clearChallengeAnimation();
@@ -4534,6 +4658,7 @@
     function clearAllTransient() {
       clearPracticeAdvance();
       clearChallengeAnimation();
+      clearRuleAnimation();
       state.foundByStep = {};
       state.answerShownByStep = {};
       state.revealedByStep = {};
@@ -5958,28 +6083,64 @@
     }
 
     function renderRulesView() {
+      // Demo view: a single rule playing as an animation.
+      if (state.ruleIndex != null && CHESS_RULES[state.ruleIndex]) {
+        const idx = state.ruleIndex;
+        const rule = CHESS_RULES[idx];
+        const stepCount = rule.steps.length;
+        const stepIndex = Math.min(Math.max(state.ruleStep, 0), stepCount - 1);
+        const step = rule.steps[stepIndex];
+        const atEnd = state.ruleStep >= stepCount - 1;
+        const isLast = idx >= CHESS_RULES.length - 1;
+        const dots = rule.steps.map((_, i) => `<span class="frame-dot ${i === stepIndex ? "is-on" : ""}"></span>`).join("");
+        stage.innerHTML = `
+          <section class="micro-card" data-coach-card="true">
+            <div>
+              <p class="eyebrow">the rules · ${idx + 1} of ${CHESS_RULES.length}</p>
+              <h2 class="micro-title">${escapeHTML(rule.title)}</h2>
+              <p class="micro-body" role="status">${escapeHTML(step.caption)}</p>
+              <div class="frame-dots" aria-hidden="true">${dots}</div>
+            </div>
+            <div class="action-row three">
+              ${isLast
+                ? `<button class="primary-button" type="button" data-action="rule-list">done</button>`
+                : `<button class="primary-button" type="button" data-action="rule-next">next rule</button>`}
+              <button class="small-button" type="button" data-action="rule-replay">replay</button>
+              <button class="small-button" type="button" data-action="rule-list">all rules</button>
+            </div>
+          </section>
+          ${renderBoard({ positionItems: clonePosition(step.position), selected: new Set(), highlights: new Set(), legal: [], lastMove: [] })}
+        `;
+        return;
+      }
+
+      // List view: every rule, grouped, each opens its animated demo.
+      let currentGroup = "";
+      const cards = CHESS_RULES.map((rule, index) => {
+        const header = rule.group !== currentGroup
+          ? `<h3 class="rules-group-title">${escapeHTML(rule.group)}</h3>`
+          : "";
+        currentGroup = rule.group;
+        return `
+          ${header}
+          <button class="rule-card" type="button" data-action="open-rule" data-rule-index="${index}">
+            <span class="rule-title">${escapeHTML(rule.title)}</span>
+            <span class="rule-cue">watch &rarr;</span>
+          </button>
+        `;
+      }).join("");
       stage.innerHTML = `
         <section class="micro-card" data-coach-card="true">
           <div>
             <p class="eyebrow">the rules</p>
             <h2 class="micro-title">beyond the moves</h2>
-            <p class="micro-body">The stuff nobody tells beginners: how pieces protect each other, how you win material, and how not to throw away a win. Read a little at a time.</p>
+            <p class="micro-body">The stuff nobody tells beginners. Tap any rule to watch it happen on the board.</p>
           </div>
           <div class="action-row single">
             <button class="small-button" type="button" data-action="rules-exit">back to patterns</button>
           </div>
         </section>
-        ${CHESS_RULES.map(group => `
-          <section class="rules-group">
-            <h3 class="rules-group-title">${escapeHTML(group.group)}</h3>
-            ${group.rules.map(rule => `
-              <article class="rule-card">
-                <h4 class="rule-title">${escapeHTML(rule.title)}</h4>
-                <p class="rule-body">${escapeHTML(rule.body)}</p>
-              </article>
-            `).join("")}
-          </section>
-        `).join("")}
+        <section class="rules-list">${cards}</section>
         <section class="rules-footer">
           <button class="small-button" type="button" data-action="rules-exit">back to patterns</button>
         </section>
@@ -6327,6 +6488,7 @@
     function openPracticeMenu(feedback = "") {
       clearPracticeAdvance();
       clearChallengeAnimation();
+      clearRuleAnimation();
       clearPracticeFlash();
       clearPracticeItem(state.practiceIndex);
       state.practiceMode = "menu";
@@ -6839,9 +7001,31 @@
       if (action === "open-rules") {
         clearPracticeAdvance();
         clearChallengeAnimation();
+        clearRuleAnimation();
         clearPracticeFlash();
         state.practiceMode = "rules";
+        state.ruleIndex = null;
+        state.ruleStep = 0;
         state.feedback = "";
+        render();
+        scrollStageIntoView();
+      }
+      if (action === "open-rule") {
+        const index = Number(actionButton.dataset.ruleIndex);
+        startRuleDemo(Number.isInteger(index) ? index : 0);
+      }
+      if (action === "rule-next") {
+        startRuleDemo(Math.min(state.ruleIndex + 1, CHESS_RULES.length - 1));
+      }
+      if (action === "rule-replay") {
+        state.ruleStep = 0;
+        render();
+        scheduleRuleFrame();
+      }
+      if (action === "rule-list") {
+        clearRuleAnimation();
+        state.ruleIndex = null;
+        state.ruleStep = 0;
         render();
         scrollStageIntoView();
       }
