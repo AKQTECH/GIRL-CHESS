@@ -1058,6 +1058,24 @@
       background: var(--pink-5);
     }
 
+    .frame-dots {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .frame-dot {
+      width: 10px;
+      height: 10px;
+      border: 2px solid var(--line-soft);
+      background: var(--white);
+    }
+
+    .frame-dot.is-on {
+      background: var(--pink-4);
+      border-color: var(--line);
+    }
+
     .mode-card {
       padding: 10px;
       border: 2px solid var(--line-soft);
@@ -1129,6 +1147,54 @@
       background: var(--pink-4);
       color: var(--white);
       font-size: 18px;
+    }
+
+    .drill-card.rules-entry {
+      border-color: var(--line);
+      background: var(--pink-1);
+    }
+
+    .drill-card.rules-entry .drill-number {
+      background: var(--pink-3);
+      font-size: 18px;
+    }
+
+    .rules-group {
+      display: grid;
+      gap: 8px;
+    }
+
+    .rules-group-title {
+      margin: 6px 0 2px;
+      font-family: "Silkscreen", monospace;
+      font-size: 13px;
+      text-transform: lowercase;
+    }
+
+    .rule-card {
+      border: 2px solid var(--line-soft);
+      background: var(--white);
+      padding: 12px;
+    }
+
+    .rule-title {
+      margin: 0 0 5px;
+      font-family: "Silkscreen", monospace;
+      font-size: 12px;
+      line-height: 1.25;
+      text-transform: lowercase;
+    }
+
+    .rule-body {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.45;
+    }
+
+    .rules-footer {
+      display: flex;
+      justify-content: center;
+      padding-top: 2px;
     }
 
     .drill-card-head {
@@ -1370,7 +1436,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "Girl Chess v4.13";
+    const APP_VERSION = "Girl Chess v4.14";
     const STORAGE_KEY = "girl-chess-progress-v1";
     // Move Options preference persists across new games (and reloads) until turned off.
     var moveOptionsPref = false;
@@ -3964,6 +4030,43 @@
       { type: "puzzle", id: "cc-far-diag-queen", label: "the far diagonal queen", position: [p("a8", "king", "dark"), p("b6", "king", "soft"), p("h3", "queen", "soft")] }
     ];
 
+    // "The Rules" — everything past how the pieces move that a beginner needs to reach intermediate.
+    const CHESS_RULES = [
+      { group: "staying safe", rules: [
+        { title: "a guarded piece is safe", body: "If one of your pieces protects another, the enemy can't just win it — you take back with the guard. That's the 'king protects the queen' idea: a queen sitting next to your king can't be captured for free, because your king would recapture." },
+        { title: "don't leave a piece hanging", body: "A piece the enemy attacks that nothing of yours defends can be taken for free. Before every move, ask: is anything of mine attacked and undefended?" },
+        { title: "the two kings can't touch", body: "A king can never move onto a square right next to the other king. They always keep at least one square between them." },
+        { title: "you can't move into check", body: "You can never put your own king in check. And if your king IS in check you must deal with it right away: move the king, block the attack, or capture the attacker." }
+      ] },
+      { group: "don't throw away a win", rules: [
+        { title: "stalemate is a draw, not a win", body: "If it's your opponent's turn, their king is NOT in check, but they have no legal move at all — the game is a draw. When you're winning, always leave the losing king one safe square until you can actually deliver checkmate." },
+        { title: "the same position three times is a draw", body: "If the exact same position happens three times, either side can claim a draw. Don't just shuffle pieces when you're ahead — make real progress." },
+        { title: "too little material is a draw", body: "You can't checkmate with just a lone king, or a king and a single knight, or a king and a single bishop. King and queen, or king and rook, CAN mate." }
+      ] },
+      { group: "what the pieces are worth", rules: [
+        { title: "piece values", body: "Pawn = 1, knight = 3, bishop = 3, rook = 5, queen = 9. The king is priceless. Use these numbers to judge whether a trade is good for you." },
+        { title: "trade up, not down", body: "Happily swap a smaller piece for a bigger one (winning a rook for a bishop is great). Avoid giving up a big piece for a small one unless it wins something even bigger." },
+        { title: "the bishop pair", body: "Two bishops working together are a little stronger than two knights when the board is open, because they sweep long diagonals from far away." }
+      ] },
+      { group: "how you win material", rules: [
+        { title: "the fork", body: "One piece attacks two things at the same time, so your opponent can only save one. Knights are famous for forking the king and queen at once." },
+        { title: "the pin", body: "A piece can't move because a more valuable piece — often the king — sits behind it on the same line. A pinned piece is stuck, so you can attack it again and win it." },
+        { title: "the skewer", body: "Like a pin in reverse: the valuable piece is in front and has to move out of check, letting you grab the piece that was hiding behind it." },
+        { title: "the discovered attack", body: "You move one piece and uncover an attack from another piece behind it. That's two threats at once — very hard to answer." }
+      ] },
+      { group: "moves people forget", rules: [
+        { title: "castling", body: "Once per game the king and a rook move together to tuck the king into safety. You can't castle if the king or that rook has already moved, if pieces are in the way, or if the king is in check, passes through check, or would land on an attacked square." },
+        { title: "en passant", body: "If an enemy pawn moves two squares and lands right beside your pawn, you may capture it as if it had moved only one square — but only on your very next move, or you lose the chance." },
+        { title: "promotion", body: "A pawn that reaches the far end turns into any piece you choose — almost always a queen. You can even end up with two queens." }
+      ] },
+      { group: "how to play well", rules: [
+        { title: "grab the center", body: "The four middle squares are the best spots on the board. Point your pawns and pieces at the center early — pieces there reach much more of the board." },
+        { title: "get your pieces out", body: "In the opening, develop your knights and bishops toward the center. Don't move the same piece twice, and don't bring the queen out too early — it just gets chased around." },
+        { title: "castle early", body: "Tuck your king safely into a corner behind its pawns in the first several moves. A king left in the center usually gets attacked." },
+        { title: "have a reason for every move", body: "Before you move, ask: what does this attack or defend, and is my king still safe afterward? A move with no purpose usually just helps your opponent." }
+      ] }
+    ];
+
     const DEMOS = {
       goal: {
         title: "logic of the whole game",
@@ -5695,6 +5798,10 @@
       const revealed = getRevealSet(key);
 
       stageLabel.textContent = "practice";
+      if (state.practiceMode === "rules") {
+        renderRulesView();
+        return;
+      }
       if (state.practiceMode === "challenge") {
         renderChallengeView();
         return;
@@ -5725,6 +5832,17 @@
                 </article>
               `;
             }).join("")}
+            <article class="drill-card rules-entry">
+              <div class="drill-card-head">
+                <span class="drill-number">§</span>
+                <div>
+                  <h2 class="drill-title">the rules</h2>
+                  <p class="drill-body">Everything past how the pieces move — protecting pieces, winning material, castling, stalemate, and how to actually play well. The stuff nobody tells you.</p>
+                </div>
+                <span class="drill-status">read</span>
+              </div>
+              <button class="primary-button" type="button" data-action="open-rules">open the rules</button>
+            </article>
             <article class="drill-card challenge-entry">
               <div class="drill-card-head">
                 <span class="drill-number">★</span>
@@ -5734,7 +5852,12 @@
                 </div>
                 <span class="drill-status">${challengeDone ? `${challengeDone}/${CHECKMATE_CHALLENGE.length}` : "start"}</span>
               </div>
-              <button class="primary-button" type="button" data-action="start-challenge">start challenge</button>
+              ${state.challengeIndex > 0
+                ? `<div class="action-row">
+                     <button class="primary-button" type="button" data-action="start-challenge">resume · ${state.challengeIndex + 1}/${CHECKMATE_CHALLENGE.length}</button>
+                     <button class="small-button" type="button" data-action="restart-challenge">start over</button>
+                   </div>`
+                : `<button class="primary-button" type="button" data-action="start-challenge">start challenge</button>`}
             </article>
           </section>
         `;
@@ -5766,8 +5889,10 @@
 
       if (item.type === "lesson") {
         const stepCount = item.steps.length;
-        const step = item.steps[Math.min(Math.max(state.challengeStep, 0), stepCount - 1)];
+        const stepIndex = Math.min(Math.max(state.challengeStep, 0), stepCount - 1);
+        const step = item.steps[stepIndex];
         const atEnd = state.challengeStep >= stepCount - 1;
+        const dots = item.steps.map((_, i) => `<span class="frame-dot ${i === stepIndex ? "is-on" : ""}"></span>`).join("");
         const actions = `
           <div class="action-row">
             ${nextButton}
@@ -5781,6 +5906,7 @@
               <p class="eyebrow">lesson · ${idx + 1} of ${total}</p>
               <h2 class="micro-title">${escapeHTML(item.label)}</h2>
               <p class="micro-body" role="status">${escapeHTML(step.caption)}</p>
+              <div class="frame-dots" aria-hidden="true">${dots}</div>
             </div>
             ${actions}
           </section>
@@ -5811,8 +5937,9 @@
           ? state.challengeMessage
           : "Find the checkmate in one move. Tap your piece, then tap the square it should land on.";
         actions = `
-          <div class="action-row">
+          <div class="action-row three">
             <button class="small-button" type="button" data-action="challenge-show">show me the move</button>
+            ${isLast ? "" : `<button class="small-button" type="button" data-action="challenge-next">skip &rarr;</button>`}
             <button class="small-button" type="button" data-action="challenge-exit">leave</button>
           </div>`;
       }
@@ -5830,6 +5957,35 @@
       `;
     }
 
+    function renderRulesView() {
+      stage.innerHTML = `
+        <section class="micro-card" data-coach-card="true">
+          <div>
+            <p class="eyebrow">the rules</p>
+            <h2 class="micro-title">beyond the moves</h2>
+            <p class="micro-body">The stuff nobody tells beginners: how pieces protect each other, how you win material, and how not to throw away a win. Read a little at a time.</p>
+          </div>
+          <div class="action-row single">
+            <button class="small-button" type="button" data-action="rules-exit">back to patterns</button>
+          </div>
+        </section>
+        ${CHESS_RULES.map(group => `
+          <section class="rules-group">
+            <h3 class="rules-group-title">${escapeHTML(group.group)}</h3>
+            ${group.rules.map(rule => `
+              <article class="rule-card">
+                <h4 class="rule-title">${escapeHTML(rule.title)}</h4>
+                <p class="rule-body">${escapeHTML(rule.body)}</p>
+              </article>
+            `).join("")}
+          </section>
+        `).join("")}
+        <section class="rules-footer">
+          <button class="small-button" type="button" data-action="rules-exit">back to patterns</button>
+        </section>
+      `;
+    }
+
     function aboutBodyHTML() {
       return `
         <section class="about-card">
@@ -5841,6 +5997,7 @@
         ${renderAboutPanel()}
       `;
     }
+
 
     function renderAbout() {
       stageLabel.textContent = "about";
@@ -6299,6 +6456,7 @@
         handleChallengeSquare(square);
         return;
       }
+      if (state.practiceMode === "rules") return;
       if (state.practiceMode === "menu") {
         state.feedback = "Choose a practice lesson first.";
         render();
@@ -6631,6 +6789,15 @@
         clearPracticeAdvance();
         clearPracticeFlash();
         state.practiceMode = "challenge";
+        // Resume where she left off instead of restarting — so leaving never traps her at one step.
+        state.challengeIndex = Math.min(Math.max(state.challengeIndex || 0, 0), CHECKMATE_CHALLENGE.length - 1);
+        state.feedback = "";
+        startChallengeItem();
+      }
+      if (action === "restart-challenge") {
+        clearPracticeAdvance();
+        clearPracticeFlash();
+        state.practiceMode = "challenge";
         state.challengeIndex = 0;
         state.feedback = "";
         startChallengeItem();
@@ -6662,10 +6829,23 @@
       if (action === "challenge-finish") {
         const done = CHECKMATE_CHALLENGE.filter(it => state.challengeSolved && state.challengeSolved[it.id]).length;
         clearChallengeAnimation();
+        state.challengeIndex = 0;
         openPracticeMenu(`Checkmate challenge done. You finished ${done} of ${CHECKMATE_CHALLENGE.length} steps.`);
       }
       if (action === "challenge-exit") {
         clearChallengeAnimation();
+        openPracticeMenu("");
+      }
+      if (action === "open-rules") {
+        clearPracticeAdvance();
+        clearChallengeAnimation();
+        clearPracticeFlash();
+        state.practiceMode = "rules";
+        state.feedback = "";
+        render();
+        scrollStageIntoView();
+      }
+      if (action === "rules-exit") {
         openPracticeMenu("");
       }
       if (action === "toggle-mate-helper") {
