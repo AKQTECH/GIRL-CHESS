@@ -218,6 +218,17 @@
       background: var(--pink-2);
     }
 
+    .lesson-button.rules-lesson {
+      border-color: var(--line);
+      background: var(--pink-1);
+    }
+
+    .lesson-button.rules-lesson .lesson-number {
+      background: var(--pink-4);
+      color: var(--white);
+      font-size: 18px;
+    }
+
     .lesson-number {
       width: 36px;
       height: 36px;
@@ -1455,7 +1466,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "Girl Chess v4.15";
+    const APP_VERSION = "Girl Chess v4.16";
     const STORAGE_KEY = "girl-chess-progress-v1";
     // Move Options preference persists across new games (and reloads) until turned off.
     var moveOptionsPref = false;
@@ -4052,10 +4063,40 @@
     // "The Rules" — everything past how the pieces move. Each rule is an animated demo (frames with
     // captions) so you can watch the idea happen on the board. Soft pink = your side, dark pink = enemy.
     const CHESS_RULES = [
-      { id: "r-guarded", group: "staying safe", title: "a guarded piece is safe", steps: [
-        { position: [p("f6", "king", "soft"), p("c3", "queen", "soft"), p("h8", "king", "dark")], caption: "Your king on f6 quietly guards the squares next to it, like g7." },
-        { position: [p("f6", "king", "soft"), p("g7", "queen", "soft"), p("h8", "king", "dark")], caption: "The queen jumps right next to the enemy king. Normally that's crazy — the king would just take it." },
-        { position: [p("f6", "king", "soft"), p("g7", "queen", "soft"), p("h8", "king", "dark")], caption: "But your king guards g7, so the king can't capture it — that would be moving next to your king. Protected, the queen is safe. It's checkmate. THIS is 'the king protects the queen'." }
+      { id: "r-guard-what", group: "guarding — how pieces defend each other", title: "what 'guarding' means", steps: [
+        { position: [p("e5", "knight", "soft"), p("e1", "rook", "soft"), p("b8", "bishop", "dark")], caption: "Your knight on e5 is attacked by the dark bishop. But your rook on e1 is DEFENDING the knight, straight down the file." },
+        { position: [p("e1", "rook", "soft"), p("e5", "bishop", "dark")], caption: "If the bishop takes the knight..." },
+        { position: [p("e5", "rook", "soft")], caption: "...your rook takes it right back. A defended piece isn't lost for free — you win the attacker in return. THAT is guarding: one of your pieces covers the square another stands on." }
+      ] },
+      { id: "r-guard-pawn", group: "guarding — how pieces defend each other", title: "how a pawn guards", steps: [
+        { position: [p("e4", "pawn", "soft"), p("d5", "knight", "soft"), p("d8", "rook", "dark")], caption: "Pawns guard the two squares diagonally in front of them. So the pawn on e4 defends your knight on d5. A rook attacks the knight down the file." },
+        { position: [p("e4", "pawn", "soft"), p("d5", "rook", "dark")], caption: "The rook grabs the knight..." },
+        { position: [p("d5", "pawn", "soft")], caption: "...but your pawn takes the rook! You gave up a knight and won a rook — a great trade, all because the pawn was guarding." }
+      ] },
+      { id: "r-guard-knight", group: "guarding — how pieces defend each other", title: "how a knight guards (your puzzle!)", steps: [
+        { position: [p("h8", "king", "dark"), p("f6", "knight", "soft"), p("h7", "rook", "soft"), p("a1", "king", "soft")], caption: "Knights guard in their L-shape. From f6, the knight reaches h7 — so your rook on h7 is defended by the knight. The rook is also checking the king." },
+        { position: [p("h8", "king", "dark"), p("f6", "knight", "soft"), p("h7", "rook", "soft"), p("a1", "king", "soft")], caption: "The king can't capture the rook: the knight attacks h7, so taking it would move into check. A guarded piece is safe — even from the king." },
+        { position: [p("h8", "king", "dark"), p("f6", "knight", "soft"), p("h7", "rook", "soft"), p("a1", "king", "soft")], caption: "And the king can't run: the knight also covers g8, and the rook covers g7. Checkmate. THIS is what was happening in your puzzle." }
+      ] },
+      { id: "r-guard-bishop", group: "guarding — how pieces defend each other", title: "how a bishop guards", steps: [
+        { position: [p("b2", "bishop", "soft"), p("e5", "knight", "soft"), p("e8", "rook", "dark")], caption: "Bishops guard along diagonals. The bishop on b2 defends your knight on e5 from all the way across the board." },
+        { position: [p("b2", "bishop", "soft"), p("e5", "rook", "dark")], caption: "A rook takes the knight..." },
+        { position: [p("e5", "bishop", "soft")], caption: "...and the bishop takes it back. Distance doesn't matter — the bishop was guarding the whole time." }
+      ] },
+      { id: "r-guard-rook", group: "guarding — how pieces defend each other", title: "how a rook guards", steps: [
+        { position: [p("a5", "rook", "soft"), p("e5", "knight", "soft"), p("b8", "bishop", "dark")], caption: "Rooks guard along ranks and files. The rook on a5 defends your knight on e5 straight across the row. A bishop attacks the knight." },
+        { position: [p("a5", "rook", "soft"), p("e5", "bishop", "dark")], caption: "The bishop takes the knight..." },
+        { position: [p("e5", "rook", "soft")], caption: "...the rook takes back. The knight was defended all along." }
+      ] },
+      { id: "r-guard-queen", group: "guarding — how pieces defend each other", title: "how a queen guards", steps: [
+        { position: [p("a1", "queen", "soft"), p("e5", "knight", "soft"), p("e8", "rook", "dark")], caption: "The queen guards along straight lines AND diagonals — more squares than any other piece. Here she defends the knight on e5 along the diagonal." },
+        { position: [p("a1", "queen", "soft"), p("e5", "rook", "dark")], caption: "Anything that captures on e5..." },
+        { position: [p("e5", "queen", "soft")], caption: "...gets taken back by the queen. She is the ultimate guard." }
+      ] },
+      { id: "r-guard-king", group: "guarding — how pieces defend each other", title: "how the king guards", steps: [
+        { position: [p("f6", "king", "soft"), p("c3", "queen", "soft"), p("h8", "king", "dark")], caption: "The king guards the squares right around it — and there's a special rule when the enemy KING is involved." },
+        { position: [p("f6", "king", "soft"), p("g7", "queen", "soft"), p("h8", "king", "dark")], caption: "Your queen jumps next to the enemy king, onto g7 — a square your king is guarding." },
+        { position: [p("f6", "king", "soft"), p("g7", "queen", "soft"), p("h8", "king", "dark")], caption: "The enemy king can't capture it: a piece guarded by your king is untouchable by their king. Checkmate. THIS is 'the king protects the queen'." }
       ] },
       { id: "r-hanging", group: "staying safe", title: "don't leave a piece hanging", steps: [
         { position: [p("g1", "king", "soft"), p("g5", "knight", "soft"), p("g8", "king", "dark"), p("h5", "rook", "dark")], caption: "Your knight on g5 is attacked by the dark rook — and nothing of yours is defending it." },
@@ -4403,6 +4444,7 @@
       challengeMessage: "",
       challengeShownMove: null,
       challengeSolved: {},
+      rulesOpen: false,
       ruleIndex: null,
       ruleStep: 0,
       play: null
@@ -4450,6 +4492,7 @@
         next.challengeMessage = "";
         next.challengeShownMove = null;
         next.challengeSolved = next.challengeSolved || {};
+        next.rulesOpen = false;
         next.ruleIndex = null;
         next.ruleStep = 0;
         next.completedDrills = next.completedDrills || {};
@@ -4512,6 +4555,7 @@
         challengeStatus,
         challengeMessage,
         challengeShownMove,
+        rulesOpen,
         ruleIndex,
         ruleStep,
         ...persisted
@@ -5661,7 +5705,16 @@
 
     function renderLessonList() {
       if (!lessonList) return;
-      lessonList.innerHTML = LESSONS.map((lesson, index) => {
+      const rulesButton = `
+        <button class="lesson-button rules-lesson" type="button" data-action="open-rules">
+          <span class="lesson-number">§</span>
+          <span>
+            <span class="lesson-name">the rules</span>
+            <span class="lesson-status"></span>
+          </span>
+        </button>
+      `;
+      lessonList.innerHTML = rulesButton + LESSONS.map((lesson, index) => {
         const isActive = index === state.lessonIndex && state.view === "lessons";
         const isDone = Boolean(state.completedLessons[lesson.id]);
         return `
@@ -5923,10 +5976,6 @@
       const revealed = getRevealSet(key);
 
       stageLabel.textContent = "practice";
-      if (state.practiceMode === "rules") {
-        renderRulesView();
-        return;
-      }
       if (state.practiceMode === "challenge") {
         renderChallengeView();
         return;
@@ -5957,17 +6006,6 @@
                 </article>
               `;
             }).join("")}
-            <article class="drill-card rules-entry">
-              <div class="drill-card-head">
-                <span class="drill-number">§</span>
-                <div>
-                  <h2 class="drill-title">the rules</h2>
-                  <p class="drill-body">Everything past how the pieces move — protecting pieces, winning material, castling, stalemate, and how to actually play well. The stuff nobody tells you.</p>
-                </div>
-                <span class="drill-status">read</span>
-              </div>
-              <button class="primary-button" type="button" data-action="open-rules">open the rules</button>
-            </article>
             <article class="drill-card challenge-entry">
               <div class="drill-card-head">
                 <span class="drill-number">★</span>
@@ -6137,12 +6175,12 @@
             <p class="micro-body">The stuff nobody tells beginners. Tap any rule to watch it happen on the board.</p>
           </div>
           <div class="action-row single">
-            <button class="small-button" type="button" data-action="rules-exit">back to patterns</button>
+            <button class="small-button" type="button" data-action="rules-exit">back to lessons</button>
           </div>
         </section>
         <section class="rules-list">${cards}</section>
         <section class="rules-footer">
-          <button class="small-button" type="button" data-action="rules-exit">back to patterns</button>
+          <button class="small-button" type="button" data-action="rules-exit">back to lessons</button>
         </section>
       `;
     }
@@ -6307,9 +6345,15 @@
         button.setAttribute("aria-pressed", String(button.dataset.view === state.view));
       });
       if (state.view === "lessons") {
-        setScaffold("lessons-layout");
-        renderLessonList();
-        renderLearn();
+        if (state.rulesOpen) {
+          setScaffold("single-panel-layout");
+          stageLabel.textContent = "the rules";
+          renderRulesView();
+        } else {
+          setScaffold("lessons-layout");
+          renderLessonList();
+          renderLearn();
+        }
       }
       if (state.view === "legend") {
         setScaffold("single-panel-layout");
@@ -6871,6 +6915,8 @@
         clearHintFlash();
         clearAllTransient();
         state.aboutOpen = false;
+        state.rulesOpen = false;
+        state.ruleIndex = null;
         state.view = viewButton.dataset.view;
         if (state.view === "lessons") {
           state.lessonMode = state.lessonMode === "complete" ? "demo" : state.lessonMode || "demo";
@@ -6999,11 +7045,10 @@
         openPracticeMenu("");
       }
       if (action === "open-rules") {
-        clearPracticeAdvance();
-        clearChallengeAnimation();
-        clearRuleAnimation();
-        clearPracticeFlash();
-        state.practiceMode = "rules";
+        clearAllTransient();
+        clearHintFlash();
+        state.view = "lessons";
+        state.rulesOpen = true;
         state.ruleIndex = null;
         state.ruleStep = 0;
         state.feedback = "";
@@ -7030,7 +7075,12 @@
         scrollStageIntoView();
       }
       if (action === "rules-exit") {
-        openPracticeMenu("");
+        clearRuleAnimation();
+        state.rulesOpen = false;
+        state.ruleIndex = null;
+        state.ruleStep = 0;
+        render();
+        scrollStageIntoView();
       }
       if (action === "toggle-mate-helper") {
         state.mateHelperOff = !state.mateHelperOff;
