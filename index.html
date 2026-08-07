@@ -1466,7 +1466,7 @@
   </div>
 
   <script>
-    const APP_VERSION = "Girl Chess v4.16";
+    const APP_VERSION = "Girl Chess v4.17";
     const STORAGE_KEY = "girl-chess-progress-v1";
     // Move Options preference persists across new games (and reloads) until turned off.
     var moveOptionsPref = false;
@@ -2103,6 +2103,13 @@
 
     function attackersOf(position, square, side) {
       return position.filter(pc => pc.side === side && singlePieceAttacks(position, pc, square));
+    }
+
+    // Every board square the piece standing on `fromSquare` guards/attacks (for the rules highlights).
+    function squaresGuardedBy(position, fromSquare) {
+      const piece = pieceAtSquare(position, fromSquare);
+      if (!piece) return [];
+      return allBoardSquares().filter(sq => sq !== fromSquare && singlePieceAttacks(position, piece, sq));
     }
 
     function kingNeighborSquares(square) {
@@ -4064,39 +4071,45 @@
     // captions) so you can watch the idea happen on the board. Soft pink = your side, dark pink = enemy.
     const CHESS_RULES = [
       { id: "r-guard-what", group: "guarding — how pieces defend each other", title: "what 'guarding' means", steps: [
-        { position: [p("e5", "knight", "soft"), p("e1", "rook", "soft"), p("b8", "bishop", "dark")], caption: "Your knight on e5 is attacked by the dark bishop. But your rook on e1 is DEFENDING the knight, straight down the file." },
+        { position: [p("e1", "rook", "soft")], guardFrom: "e1", caption: "A piece 'guards' every square it could capture on. This rook on e1 guards all the highlighted squares — its whole row and column." },
+        { position: [p("e5", "knight", "soft"), p("e1", "rook", "soft"), p("b8", "bishop", "dark")], guardFrom: "e1", caption: "So your knight on e5 sits on a square the rook guards. A dark bishop attacks the knight." },
         { position: [p("e1", "rook", "soft"), p("e5", "bishop", "dark")], caption: "If the bishop takes the knight..." },
-        { position: [p("e5", "rook", "soft")], caption: "...your rook takes it right back. A defended piece isn't lost for free — you win the attacker in return. THAT is guarding: one of your pieces covers the square another stands on." }
+        { position: [p("e5", "rook", "soft")], caption: "...your rook takes it right back. A guarded piece isn't lost for free — you win the attacker in return. THAT is guarding." }
       ] },
       { id: "r-guard-pawn", group: "guarding — how pieces defend each other", title: "how a pawn guards", steps: [
-        { position: [p("e4", "pawn", "soft"), p("d5", "knight", "soft"), p("d8", "rook", "dark")], caption: "Pawns guard the two squares diagonally in front of them. So the pawn on e4 defends your knight on d5. A rook attacks the knight down the file." },
+        { position: [p("e4", "pawn", "soft")], guardFrom: "e4", caption: "A pawn guards the TWO squares diagonally in front of it — the highlighted d5 and f5. (Not the square straight ahead — it can't capture there.)" },
+        { position: [p("e4", "pawn", "soft"), p("d5", "knight", "soft"), p("d8", "rook", "dark")], guardFrom: "e4", caption: "So your knight on d5 sits on a guarded square. A dark rook attacks the knight down the file." },
         { position: [p("e4", "pawn", "soft"), p("d5", "rook", "dark")], caption: "The rook grabs the knight..." },
-        { position: [p("d5", "pawn", "soft")], caption: "...but your pawn takes the rook! You gave up a knight and won a rook — a great trade, all because the pawn was guarding." }
+        { position: [p("d5", "pawn", "soft")], caption: "...but your pawn captures the rook! You gave a knight and won a rook — a great trade, thanks to the pawn's guard." }
       ] },
       { id: "r-guard-knight", group: "guarding — how pieces defend each other", title: "how a knight guards (your puzzle!)", steps: [
-        { position: [p("h8", "king", "dark"), p("f6", "knight", "soft"), p("h7", "rook", "soft"), p("a1", "king", "soft")], caption: "Knights guard in their L-shape. From f6, the knight reaches h7 — so your rook on h7 is defended by the knight. The rook is also checking the king." },
-        { position: [p("h8", "king", "dark"), p("f6", "knight", "soft"), p("h7", "rook", "soft"), p("a1", "king", "soft")], caption: "The king can't capture the rook: the knight attacks h7, so taking it would move into check. A guarded piece is safe — even from the king." },
-        { position: [p("h8", "king", "dark"), p("f6", "knight", "soft"), p("h7", "rook", "soft"), p("a1", "king", "soft")], caption: "And the king can't run: the knight also covers g8, and the rook covers g7. Checkmate. THIS is what was happening in your puzzle." }
+        { position: [p("f6", "knight", "soft")], guardFrom: "f6", caption: "A knight guards the eight squares of its L-shaped jump — all highlighted. Notice it reaches both g8 and h7." },
+        { position: [p("h8", "king", "dark"), p("f6", "knight", "soft"), p("h7", "rook", "soft"), p("a1", "king", "soft")], guardFrom: "f6", caption: "So your rook on h7 sits on a square the knight guards, and it's checking the king." },
+        { position: [p("h8", "king", "dark"), p("f6", "knight", "soft"), p("h7", "rook", "soft"), p("a1", "king", "soft")], caption: "The king can't capture the rook: the knight guards h7, so taking it would move into check." },
+        { position: [p("h8", "king", "dark"), p("f6", "knight", "soft"), p("h7", "rook", "soft"), p("a1", "king", "soft")], caption: "And it can't run: the knight also covers g8, and the rook covers g7. Checkmate. THIS is what was happening in your puzzle." }
       ] },
       { id: "r-guard-bishop", group: "guarding — how pieces defend each other", title: "how a bishop guards", steps: [
-        { position: [p("b2", "bishop", "soft"), p("e5", "knight", "soft"), p("e8", "rook", "dark")], caption: "Bishops guard along diagonals. The bishop on b2 defends your knight on e5 from all the way across the board." },
-        { position: [p("b2", "bishop", "soft"), p("e5", "rook", "dark")], caption: "A rook takes the knight..." },
-        { position: [p("e5", "bishop", "soft")], caption: "...and the bishop takes it back. Distance doesn't matter — the bishop was guarding the whole time." }
+        { position: [p("b2", "bishop", "soft")], guardFrom: "b2", caption: "A bishop guards every square along its diagonals — all highlighted, no matter how far away." },
+        { position: [p("b2", "bishop", "soft"), p("e5", "knight", "soft"), p("e8", "rook", "dark")], guardFrom: "b2", caption: "The knight on e5 sits on the bishop's diagonal, so it's defended. A rook attacks it." },
+        { position: [p("b2", "bishop", "soft"), p("e5", "rook", "dark")], caption: "The rook takes the knight..." },
+        { position: [p("e5", "bishop", "soft")], caption: "...and the bishop takes it back, from all the way across the board." }
       ] },
       { id: "r-guard-rook", group: "guarding — how pieces defend each other", title: "how a rook guards", steps: [
-        { position: [p("a5", "rook", "soft"), p("e5", "knight", "soft"), p("b8", "bishop", "dark")], caption: "Rooks guard along ranks and files. The rook on a5 defends your knight on e5 straight across the row. A bishop attacks the knight." },
+        { position: [p("a5", "rook", "soft")], guardFrom: "a5", caption: "A rook guards its whole rank and file — every highlighted square, straight lines only." },
+        { position: [p("a5", "rook", "soft"), p("e5", "knight", "soft"), p("b8", "bishop", "dark")], guardFrom: "a5", caption: "The knight on e5 is on the rook's row, so it's guarded. A bishop attacks it." },
         { position: [p("a5", "rook", "soft"), p("e5", "bishop", "dark")], caption: "The bishop takes the knight..." },
-        { position: [p("e5", "rook", "soft")], caption: "...the rook takes back. The knight was defended all along." }
+        { position: [p("e5", "rook", "soft")], caption: "...and the rook takes back. The knight was defended all along." }
       ] },
       { id: "r-guard-queen", group: "guarding — how pieces defend each other", title: "how a queen guards", steps: [
-        { position: [p("a1", "queen", "soft"), p("e5", "knight", "soft"), p("e8", "rook", "dark")], caption: "The queen guards along straight lines AND diagonals — more squares than any other piece. Here she defends the knight on e5 along the diagonal." },
-        { position: [p("a1", "queen", "soft"), p("e5", "rook", "dark")], caption: "Anything that captures on e5..." },
-        { position: [p("e5", "queen", "soft")], caption: "...gets taken back by the queen. She is the ultimate guard." }
+        { position: [p("d4", "queen", "soft")], guardFrom: "d4", caption: "The queen guards straight lines AND diagonals at once — look how many squares (all highlighted). She's the strongest guard." },
+        { position: [p("a1", "queen", "soft"), p("e5", "knight", "soft"), p("e8", "rook", "dark")], guardFrom: "a1", caption: "Here the queen on a1 guards the knight on e5 along the diagonal. A rook attacks the knight." },
+        { position: [p("a1", "queen", "soft"), p("e5", "rook", "dark")], caption: "The rook takes on e5..." },
+        { position: [p("e5", "queen", "soft")], caption: "...and the queen takes it back. Nothing captures a queen-guarded piece for free." }
       ] },
       { id: "r-guard-king", group: "guarding — how pieces defend each other", title: "how the king guards", steps: [
-        { position: [p("f6", "king", "soft"), p("c3", "queen", "soft"), p("h8", "king", "dark")], caption: "The king guards the squares right around it — and there's a special rule when the enemy KING is involved." },
-        { position: [p("f6", "king", "soft"), p("g7", "queen", "soft"), p("h8", "king", "dark")], caption: "Your queen jumps next to the enemy king, onto g7 — a square your king is guarding." },
-        { position: [p("f6", "king", "soft"), p("g7", "queen", "soft"), p("h8", "king", "dark")], caption: "The enemy king can't capture it: a piece guarded by your king is untouchable by their king. Checkmate. THIS is 'the king protects the queen'." }
+        { position: [p("f6", "king", "soft")], guardFrom: "f6", caption: "The king guards the eight squares right around it — all highlighted." },
+        { position: [p("f6", "king", "soft"), p("g7", "queen", "soft"), p("h8", "king", "dark")], guardFrom: "f6", caption: "So the queen can sit on g7, a square your king guards, right next to the enemy king." },
+        { position: [p("f6", "king", "soft"), p("g7", "queen", "soft"), p("h8", "king", "dark")], caption: "The enemy king can't capture it: a piece guarded by your king is untouchable by their king. Checkmate — 'the king protects the queen'." }
       ] },
       { id: "r-hanging", group: "staying safe", title: "don't leave a piece hanging", steps: [
         { position: [p("g1", "king", "soft"), p("g5", "knight", "soft"), p("g8", "king", "dark"), p("h5", "rook", "dark")], caption: "Your knight on g5 is attacked by the dark rook — and nothing of yours is defending it." },
@@ -6131,6 +6144,11 @@
         const atEnd = state.ruleStep >= stepCount - 1;
         const isLast = idx >= CHESS_RULES.length - 1;
         const dots = rule.steps.map((_, i) => `<span class="frame-dot ${i === stepIndex ? "is-on" : ""}"></span>`).join("");
+        // If a frame names a guarding piece, highlight every square that piece guards.
+        const stepPosition = clonePosition(step.position);
+        const highlights = step.guardFrom
+          ? new Set(squaresGuardedBy(stepPosition, step.guardFrom))
+          : new Set(step.highlight || []);
         stage.innerHTML = `
           <section class="micro-card" data-coach-card="true">
             <div>
@@ -6147,7 +6165,7 @@
               <button class="small-button" type="button" data-action="rule-list">all rules</button>
             </div>
           </section>
-          ${renderBoard({ positionItems: clonePosition(step.position), selected: new Set(), highlights: new Set(), legal: [], lastMove: [] })}
+          ${renderBoard({ positionItems: stepPosition, selected: new Set(), highlights, legal: [], lastMove: [] })}
         `;
         return;
       }
@@ -7026,6 +7044,9 @@
         render();
       }
       if (action === "challenge-next") {
+        // Mark the item you're leaving as done, so passing through counts even if you skip it.
+        const leaving = CHECKMATE_CHALLENGE[state.challengeIndex];
+        if (leaving) state.challengeSolved = { ...(state.challengeSolved || {}), [leaving.id]: true };
         state.challengeIndex = Math.min(state.challengeIndex + 1, CHECKMATE_CHALLENGE.length - 1);
         startChallengeItem();
       }
@@ -7035,6 +7056,8 @@
         scheduleChallengeFrame();
       }
       if (action === "challenge-finish") {
+        const last = CHECKMATE_CHALLENGE[state.challengeIndex];
+        if (last) state.challengeSolved = { ...(state.challengeSolved || {}), [last.id]: true };
         const done = CHECKMATE_CHALLENGE.filter(it => state.challengeSolved && state.challengeSolved[it.id]).length;
         clearChallengeAnimation();
         state.challengeIndex = 0;
